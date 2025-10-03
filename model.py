@@ -42,7 +42,7 @@ model = Sequential([
     Flatten(),
     Dense(128, activation='relu'),
     Dropout(0.5),
-    Dense(3, activation='softmax')  # 👈 cambia el número si no son 3 clases
+    Dense(3, activation='softmax')  # cambia el número si no son 3 clases
 ])
 
 # ===========================
