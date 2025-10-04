@@ -25,7 +25,7 @@ def eliminar_repetidas(carpeta):
                 except Exception as e:
                     print(f"No se pudo procesar {ruta}: {e}")
     
-    print(f"\n✅ Proceso completado. Se eliminaron {borradas} imágenes repetidas en {carpeta}")
+    print(f"\n Proceso completado. Se eliminaron {borradas} imágenes repetidas en {carpeta}")
 
 # Ejecutar en tus carpetas
 eliminar_repetidas("data/train")
