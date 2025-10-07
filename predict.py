@@ -17,7 +17,7 @@ clases = ["cortes", "quemaduras", "golpes"]
 # 3. Cargar imagen a predecir
 # ================================
 ruta_imagen = r"C:\Users\cesar\OneDrive\Desktop\IA-Convolucional\ejemplo.jpg"
-
+ 
 if not os.path.exists(ruta_imagen):
     print(f"No se encontró la imagen: {ruta_imagen}")
 else:

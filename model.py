@@ -2,22 +2,57 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, RandomFlip, RandomRotation
 import matplotlib.pyplot as plt
+from PIL import Image
+import os
+
+# ===========================
+# Funciones para limpiar imágenes
+# ===========================
+def limpiar_y_convertir_carpeta(carpeta):
+    for root, dirs, files in os.walk(carpeta):
+        for archivo in files:
+            ruta_archivo = os.path.join(root, archivo)
+            try:
+                # Abrir imagen y verificar que no esté corrupta
+                img = Image.open(ruta_archivo)
+                img.verify()
+                
+                # Reabrir y convertir a RGB (por si no está en ese formato)
+                img = Image.open(ruta_archivo).convert('RGB')
+                nuevo_nombre = os.path.splitext(ruta_archivo)[0] + ".jpg"
+                img.save(nuevo_nombre, "JPEG")
+                
+                # Si el archivo original no era .jpg, eliminarlo
+                if ruta_archivo != nuevo_nombre:
+                    os.remove(ruta_archivo)
+
+            except Exception:
+                print(f"❌ Archivo inválido eliminado: {ruta_archivo}")
+                os.remove(ruta_archivo)
+
+# ===========================
+# Limpiar carpetas antes de cargar datasets
+# ===========================
+print("🔹 Limpiando y convirtiendo imágenes de train...")
+limpiar_y_convertir_carpeta("data/train")
+print("🔹 Limpiando y convirtiendo imágenes de val...")
+limpiar_y_convertir_carpeta("data/val")
 
 # ===========================
 # 1. Cargar datasets
 # ===========================
 train_dataset = tf.keras.utils.image_dataset_from_directory(
-    "data/train",              # carpeta con subcarpetas (cortes, quemaduras, golpes)
+    "data/train",
     image_size=(128, 128),
     batch_size=32,
-    label_mode="int"           # etiquetas enteras (0,1,2...)
+    label_mode="int",
 )
 
 val_dataset = tf.keras.utils.image_dataset_from_directory(
     "data/val",
     image_size=(128, 128),
     batch_size=32,
-    label_mode="int"
+    label_mode="int",
 )
 
 # ===========================
@@ -42,7 +77,7 @@ model = Sequential([
     Flatten(),
     Dense(128, activation='relu'),
     Dropout(0.5),
-    Dense(3, activation='softmax')  # cambia el número si no son 3 clases
+    Dense(3, activation='softmax')  # cambiar si no son 3 clases
 ])
 
 # ===========================
