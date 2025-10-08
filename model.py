@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, RandomFlip, RandomRotation
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import matplotlib.pyplot as plt
 from PIL import Image
 import os
@@ -13,59 +14,55 @@ def limpiar_y_convertir_carpeta(carpeta):
         for archivo in files:
             ruta_archivo = os.path.join(root, archivo)
             try:
-                # Abrir imagen y verificar que no esté corrupta
                 img = Image.open(ruta_archivo)
                 img.verify()
-                
-                # Reabrir y convertir a RGB
                 img = Image.open(ruta_archivo).convert('RGB')
                 nuevo_nombre = os.path.splitext(ruta_archivo)[0] + ".jpg"
                 img.save(nuevo_nombre, "JPEG")
-                
-                # Si el archivo original no era .jpg, eliminarlo
                 if ruta_archivo != nuevo_nombre:
                     os.remove(ruta_archivo)
-
             except Exception:
                 print(f" Archivo inválido eliminado: {ruta_archivo}")
                 os.remove(ruta_archivo)
 
-# ===========================
 # Limpiar carpetas
-# ===========================
 print("🔹 Limpiando y convirtiendo imágenes de train...")
 limpiar_y_convertir_carpeta("data/train")
 print("🔹 Limpiando y convirtiendo imágenes de val...")
 limpiar_y_convertir_carpeta("data/val")
 
 # ===========================
-# 1. Cargar datasets
+# Data Augmentation y Generadores
 # ===========================
-train_dataset = tf.keras.utils.image_dataset_from_directory(
-    "data/train",           # Estructura esperada:
-                            # data/train/quemaduras/
-                            # data/train/cortadas/
-    image_size=(128, 128),
-    batch_size=32,
-    label_mode="int",
+train_datagen = ImageDataGenerator(
+    rescale=1./255,
+    rotation_range=20,
+    width_shift_range=0.1,
+    height_shift_range=0.1,
+    zoom_range=0.1,
+    horizontal_flip=True,
+    fill_mode='nearest'
 )
 
-val_dataset = tf.keras.utils.image_dataset_from_directory(
-    "data/val",             # data/val/quemaduras/
-                            # data/val/cortadas/
-    image_size=(128, 128),
+val_datagen = ImageDataGenerator(rescale=1./255)
+
+train_generator = train_datagen.flow_from_directory(
+    "data/train",
+    target_size=(128,128),
     batch_size=32,
-    label_mode="int",
+    class_mode="sparse",  # etiquetas como enteros
+    shuffle=True
+)
+
+val_generator = val_datagen.flow_from_directory(
+    "data/val",
+    target_size=(128,128),
+    batch_size=32,
+    class_mode="sparse"
 )
 
 # ===========================
-# 2. Normalización
-# ===========================
-train_dataset = train_dataset.map(lambda x, y: (x/255.0, y))
-val_dataset = val_dataset.map(lambda x, y: (x/255.0, y))
-
-# ===========================
-# 3. Definir el modelo CNN
+# Definir modelo CNN
 # ===========================
 model = Sequential([
     RandomFlip("horizontal"),
@@ -81,34 +78,39 @@ model = Sequential([
     Dense(128, activation='relu'),
     Dropout(0.5),
 
-    # ✅ Cambiado: ahora solo hay 2 clases
-    Dense(2, activation='softmax')
+    Dense(2, activation='softmax')  # 2 clases: quemaduras y cortadas
 ])
 
 # ===========================
-# 4. Compilar
+# Compilar modelo
 # ===========================
-model.compile(optimizer='adam',
-              loss='sparse_categorical_crossentropy',
-              metrics=['accuracy'])
+model.compile(
+    optimizer='adam',
+    loss='sparse_categorical_crossentropy',
+    metrics=['accuracy']
+)
 
 # ===========================
-# 5. Entrenar
+# Entrenar modelo
 # ===========================
-history = model.fit(train_dataset, validation_data=val_dataset, epochs=10)
+history = model.fit(
+    train_generator,
+    validation_data=val_generator,
+    epochs=30  # aumenta número de épocas
+)
 
 # ===========================
-# 6. Guardar modelo
+# Guardar modelo
 # ===========================
 model.save("modelo_quemaduras_cortadas.h5")
 
 # ===========================
-# 7. Graficar entrenamiento
+# Graficar entrenamiento
 # ===========================
 plt.plot(history.history['accuracy'], label='Entrenamiento')
 plt.plot(history.history['val_accuracy'], label='Validación')
 plt.xlabel("Épocas")
 plt.ylabel("Precisión")
+plt.title("CNN - Quemaduras vs Cortadas")
 plt.legend()
-plt.title("Entrenamiento CNN - Quemaduras vs Cortadas")
 plt.show()

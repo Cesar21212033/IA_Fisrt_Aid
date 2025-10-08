@@ -30,3 +30,4 @@ def eliminar_repetidas(carpeta):
 # Ejecutar en tus carpetas
 eliminar_repetidas("data/train")
 eliminar_repetidas("data/val")
+
