@@ -11,7 +11,7 @@ modelo = load_model("modelo_lesiones_brazos.h5")
 # ================================
 # 2. Definir clases
 # ================================
-clases = ["cortes", "quemaduras", "golpes"]
+clases = ["cortes", "golpes"]
 
 # ================================
 # 3. Cargar imagen a predecir

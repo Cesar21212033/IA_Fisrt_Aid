@@ -6,7 +6,7 @@ from PIL import Image
 import os
 
 # ===========================
-# Funciones para limpiar imágenes
+# Función para limpiar imágenes
 # ===========================
 def limpiar_y_convertir_carpeta(carpeta):
     for root, dirs, files in os.walk(carpeta):
@@ -17,7 +17,7 @@ def limpiar_y_convertir_carpeta(carpeta):
                 img = Image.open(ruta_archivo)
                 img.verify()
                 
-                # Reabrir y convertir a RGB (por si no está en ese formato)
+                # Reabrir y convertir a RGB
                 img = Image.open(ruta_archivo).convert('RGB')
                 nuevo_nombre = os.path.splitext(ruta_archivo)[0] + ".jpg"
                 img.save(nuevo_nombre, "JPEG")
@@ -27,11 +27,11 @@ def limpiar_y_convertir_carpeta(carpeta):
                     os.remove(ruta_archivo)
 
             except Exception:
-                print(f"❌ Archivo inválido eliminado: {ruta_archivo}")
+                print(f" Archivo inválido eliminado: {ruta_archivo}")
                 os.remove(ruta_archivo)
 
 # ===========================
-# Limpiar carpetas antes de cargar datasets
+# Limpiar carpetas
 # ===========================
 print("🔹 Limpiando y convirtiendo imágenes de train...")
 limpiar_y_convertir_carpeta("data/train")
@@ -42,14 +42,17 @@ limpiar_y_convertir_carpeta("data/val")
 # 1. Cargar datasets
 # ===========================
 train_dataset = tf.keras.utils.image_dataset_from_directory(
-    "data/train",
+    "data/train",           # Estructura esperada:
+                            # data/train/quemaduras/
+                            # data/train/cortadas/
     image_size=(128, 128),
     batch_size=32,
     label_mode="int",
 )
 
 val_dataset = tf.keras.utils.image_dataset_from_directory(
-    "data/val",
+    "data/val",             # data/val/quemaduras/
+                            # data/val/cortadas/
     image_size=(128, 128),
     batch_size=32,
     label_mode="int",
@@ -77,7 +80,9 @@ model = Sequential([
     Flatten(),
     Dense(128, activation='relu'),
     Dropout(0.5),
-    Dense(3, activation='softmax')  # cambiar si no son 3 clases
+
+    # ✅ Cambiado: ahora solo hay 2 clases
+    Dense(2, activation='softmax')
 ])
 
 # ===========================
@@ -95,7 +100,7 @@ history = model.fit(train_dataset, validation_data=val_dataset, epochs=10)
 # ===========================
 # 6. Guardar modelo
 # ===========================
-model.save("modelo_lesiones_brazos.h5")
+model.save("modelo_quemaduras_cortadas.h5")
 
 # ===========================
 # 7. Graficar entrenamiento
@@ -105,4 +110,5 @@ plt.plot(history.history['val_accuracy'], label='Validación')
 plt.xlabel("Épocas")
 plt.ylabel("Precisión")
 plt.legend()
+plt.title("Entrenamiento CNN - Quemaduras vs Cortadas")
 plt.show()
