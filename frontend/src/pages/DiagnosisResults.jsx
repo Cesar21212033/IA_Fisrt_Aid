@@ -9,7 +9,7 @@ function DiagnosisResults() {
   const [currentSeverity, setCurrentSeverity] = useState("grave")
 
   /**
- * RESULTADOS DEL DIAGNÓSTICO - Lo que encontró la IA apoco si 
+ * RESULTADOS DEL DIAGNÓSTICO - Lo que encontró la IA apoco si pip install
  * 
  * Esta es la página más importante: aquí la IA muestra su diagnóstico y recomendaciones.
  * 
