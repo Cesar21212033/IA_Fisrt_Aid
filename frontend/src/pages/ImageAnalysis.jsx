@@ -33,17 +33,39 @@ function ImageAnalysis() {
     }
   }
 
-  const handleAnalyze = () => {
-    if (selectedImage) {
-      setIsAnalyzing(true)
-      // Simular análisis (aquí irá la lógica del backend jiji)
-      setTimeout(() => {
-        setIsAnalyzing(false)
-        // Navegar a la página de resultados
-        navigate('/diagnosis-results')
-      }, 2000)
+  const handleAnalyze = async () => {
+  if (!selectedImage) return;
+  setIsAnalyzing(true);
+
+  try {
+    // Preparar FormData con la imagen
+    const formData = new FormData();
+    formData.append("file", selectedImage);
+
+    // Enviar al backend
+    const response = await fetch("http://localhost:8000/predict/", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await response.json();
+    setIsAnalyzing(false);
+
+    if (data.error) {
+      alert(data.error);
+      return;
     }
+
+    // Redirigir a la página de resultados y pasar la predicción
+    navigate("/diagnosis-results", { state: data });
+
+  } catch (err) {
+    setIsAnalyzing(false);
+    alert("Error al analizar la imagen. Revisa que el backend esté corriendo.");
   }
+};
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
