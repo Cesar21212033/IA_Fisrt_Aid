@@ -49,19 +49,26 @@ function DiagnosisResults() {
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <p className="text-lg mb-2">Clase detectada: <span className="font-semibold">{clase}</span></p>
-        <p className="text-lg mb-6">Confianza: <span className="font-semibold">{diagnosisData.confidence}%</span></p>
+  {/* Mostrar respuesta de texto si existe */}
+  {location.state.respuesta && (
+    <div className="bg-white p-6 rounded-xl shadow-md mb-6">
+      <p className="text-gray-800 whitespace-pre-line">{location.state.respuesta}</p>
+    </div>
+  )}
 
-        {/* Action Buttons */}
-        <div className="flex gap-4">
-          <button onClick={handleSaveResult} className="flex items-center bg-blue-600 text-white py-2 px-4 rounded">
-            <FaSave className="mr-2"/> Guardar
-          </button>
-          <button onClick={handleNewDiagnosis} className="flex items-center bg-gray-700 text-white py-2 px-4 rounded">
-            <FaPlus className="mr-2"/> Nuevo
-          </button>
-        </div>
-      </main>
+  <p className="text-lg mb-2">Clase detectada: <span className="font-semibold">{clase}</span></p>
+  <p className="text-lg mb-6">Confianza: <span className="font-semibold">{diagnosisData.confidence}%</span></p>
+
+  {/* Action Buttons */}
+  <div className="flex gap-4">
+    <button onClick={handleSaveResult} className="flex items-center bg-blue-600 text-white py-2 px-4 rounded">
+      <FaSave className="mr-2"/> Guardar
+    </button>
+    <button onClick={handleNewDiagnosis} className="flex items-center bg-gray-700 text-white py-2 px-4 rounded">
+      <FaPlus className="mr-2"/> Nuevo
+    </button>
+  </div>
+</main>
     </div>
   )
 }
