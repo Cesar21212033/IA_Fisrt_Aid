@@ -1,0 +1,48 @@
+Bitácora de Avance – 20/10/2025
+
+Proyecto: IA First Aid – Diagnóstico de lesiones escolares
+Equipo: Desarrollo Frontend + Backend
+
+1. Resumen del día
+Hoy logramos avanzar en la integración de los servidores de frontend y backend, permitiendo que ambos se ejecuten simultáneamente desde un solo comando (py start.py). Esto hace que sea más sencillo probar la aplicación y evita la necesidad de abrir varias terminales al mismo tiempo. También corregimos la ruta del modelo modelo_quemaduras_cortadas.h5 para que FastAPI pueda cargarlo correctamente y no se presenten errores al iniciar la aplicación.
+
+2. Backend – FastAPI (app.py)
+
+Se mantiene la estructura del API REST para procesar imágenes y generar predicciones con el modelo de IA, con algunas mejoras:
+Carga correcta del modelo: Se asegura que app.py encuentre modelo_quemaduras_cortadas.h5 en la carpeta raíz, evitando errores de archivo no encontrado.
+Unificación de ejecución: Gracias a start.py, el backend se ejecuta en un hilo paralelo, junto con el frontend, simplificando la prueba de la aplicación.
+CORS habilitado: Permite que el frontend pueda hacer peticiones sin problemas de origen.
+Endpoint /predict/: Recibe imágenes por POST. Convierte la imagen a array, la normaliza y genera la predicción. Retorna la clase (quemaduras o cortadas) y la probabilidad. Borra la imagen temporal después de procesarla.
+
+Beneficio: Esto hace que el flujo de análisis de imágenes sea más confiable y fácil de probar durante el desarrollo.
+
+Nota sobre el análisis de texto:
+Inicialmente se planeó un módulo de análisis por texto para que la enfermera pudiera describir los síntomas y recibir un diagnóstico automático. Se intentó usar la API de OpenAI, pero los usos gratuitos se agotaron rápidamente, por lo que no fue posible integrarlo. Como alternativa, se probó con un modelo Transformers (Falcon 7B) que no requiere pago, pero tuvimos dificultades para incorporar ambos módulos (análisis de imágenes y texto) en la misma aplicación. Por esta razón, solo se dejó el módulo de análisis de imágenes, que funciona de manera estable y confiable.
+
+3. Frontend – React
+
+El frontend sigue mostrando los resultados de manera dinámica:
+Permite subir imágenes y ver una vista previa antes del análisis.
+Envía la imagen al backend para su predicción.
+Muestra los resultados (clase y probabilidad) de manera clara.
+
+Nota: Todos los datos mostrados dependen directamente de la predicción del modelo de IA.
+
+4. Ejecución de la aplicación
+Ahora, basta con un solo comando para levantar ambos servidores:
+py start.py
+
+
+Esto hace que:
+Servidor FastAPI corra en un hilo en http://localhost:8000 con el endpoint /predict/.
+Servidor React + Vite corra en otro hilo en http://localhost:5173, mostrando cambios en tiempo real.
+
+Ventaja: No es necesario abrir varias terminales ni preocuparse por el orden de ejecución; esto facilita mucho las pruebas y el desarrollo diario.
+
+5. Próximos pasos
+
+Integrar el análisis por texto para que la enfermera pueda describir síntomas y recibir un diagnóstico automático.
+Agregar la opción de guardar resultados en base de datos.
+Incluir recomendaciones según el tipo y severidad de la lesión.
+Validar las imágenes (tamaño y formato permitido).
+Explorar alertas automáticas para lesiones graves.
