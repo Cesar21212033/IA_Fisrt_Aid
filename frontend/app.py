@@ -6,6 +6,38 @@ import os
 import numpy as np
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
+from google import genai
+
+GEMINI_API_KEY = "AIzaSyBcy89im5JOLDfQKLaEN9G2eTUBhl1YNzo"
+
+cliente_gemini = genai.Client(api_key=GEMINI_API_KEY)
+
+def recomendacion_gemini(clase_detectada: str) -> str:
+    """Genera una recomendación de primeros auxilios."""
+    if not cliente_gemini:
+        return "Asistente de IA no disponible."
+
+    prompt = f"""
+    Actúa como un experto asistente de primeros auxilios. La lesión ha sido clasificada 
+    por un modelo de visión artificial como: **{clase_detectada}**.
+    
+    Genera una respuesta profesional, que al mismo tiempo sea facil de entender, clara y 
+    concisa que se enfoque en los primeros auxilios. 
+    Incluye:
+    1. Una breve descripción de la lesión.
+    2. Tres pasos cruciales de acción inmediata (qué hacer).
+    3. Una advertencia clara (qué NO hacer).
+    Formatea la respuesta usando saltos de línea para facilitar la lectura.
+    """
+    
+    try:
+        respuesta = cliente_gemini.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt
+        )
+        return respuesta
+    except Exception as e:
+        return f"Error al generar la recomendación: {e}"
 
 # --- Configuración base ---
 app = FastAPI(title="IA First Aid API")
@@ -48,12 +80,18 @@ async def predict_image(file: UploadFile = File(...)):
         prediccion = modelo.predict(img_array, verbose=0)
         clase_idx = int(np.argmax(prediccion))
         probabilidad = float(np.max(prediccion))
+        clase_detectada = clases[clase_idx]
 
+        # Llamada a Gemini
+        instrucciones_ai = recomendacion_gemini(clase_detectada)
+        
+        # Borrar imagen temporal
         os.remove(ruta_temp)
 
         return {
             "clase": clases[clase_idx],
-            "probabilidad": probabilidad
+            "probabilidad": probabilidad,
+            "instrucciones": instrucciones_ai
         }
 
     except Exception as e:

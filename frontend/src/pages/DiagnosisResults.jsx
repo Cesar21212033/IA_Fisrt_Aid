@@ -10,7 +10,7 @@ function DiagnosisResults() {
 
   if (!analysisData) return <p className="text-center mt-10 text-gray-700">No hay datos de análisis</p>
 
-  const { clase, probabilidad } = analysisData
+  const { clase, probabilidad, instrucciones } = analysisData
 
   // Mapear clase a severidad
   const mappedSeverity = clase === "quemaduras" ? "moderado" : clase === "cortadas" ? "leve" : "grave"
@@ -49,6 +49,7 @@ function DiagnosisResults() {
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+  
   {/* Mostrar respuesta de texto si existe */}
   {location.state.respuesta && (
     <div className="bg-white p-6 rounded-xl shadow-md mb-6">
@@ -58,6 +59,17 @@ function DiagnosisResults() {
 
   <p className="text-lg mb-2">Clase detectada: <span className="font-semibold">{clase}</span></p>
   <p className="text-lg mb-6">Confianza: <span className="font-semibold">{diagnosisData.confidence}%</span></p>
+  <p className="text-lg mb-6">Recomendaciones de primeros auxilios: <span className="font-semibold">{instrucciones}</span></p>
+
+  {/* Recomendación de Gemini */}
+  {instrucciones ? (
+  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded">
+    <h2 className="font-semibold mb-2">Recomendaciones de primeros auxilios:</h2>
+    <p className="whitespace-pre-line">{instrucciones}</p>
+  </div>
+    ) : (
+      <p className="text-gray-500 mb-6">No hay recomendaciones disponibles.</p>
+    )}
 
   {/* Action Buttons */}
   <div className="flex gap-4">
