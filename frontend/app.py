@@ -28,7 +28,7 @@ def recomendacion_gemini(clase_detectada: str) -> str:
         Usa saltos de línea para mejorar la legibilidad.
         """
 
-        model = genai.GenerativeModel("gemini-1.5-flash")  # ✅ modelo correcto
+        model = genai.GenerativeModel("gemini-2.5-flash")  # ✅ modelo correcto
         respuesta = model.generate_content(prompt)
 
         return respuesta.text  # ✅ devuelve solo el texto

@@ -59,7 +59,6 @@ function DiagnosisResults() {
 
   <p className="text-lg mb-2">Clase detectada: <span className="font-semibold">{clase}</span></p>
   <p className="text-lg mb-6">Confianza: <span className="font-semibold">{diagnosisData.confidence}%</span></p>
-  <p className="text-lg mb-6">Recomendaciones de primeros auxilios: <span className="font-semibold">{instrucciones}</span></p>
 
   {/* Recomendación de Gemini */}
   {instrucciones ? (
