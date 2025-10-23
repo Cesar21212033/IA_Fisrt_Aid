@@ -1,4 +1,3 @@
-# app.py
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import shutil
@@ -6,43 +5,41 @@ import os
 import numpy as np
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
-from google import genai
+import google.generativeai as genai  # ✅ Importación correcta
 
+# === CONFIGURACIÓN DE GEMINI ===
 GEMINI_API_KEY = "AIzaSyBcy89im5JOLDfQKLaEN9G2eTUBhl1YNzo"
+genai.configure(api_key=GEMINI_API_KEY)
 
-cliente_gemini = genai.Client(api_key=GEMINI_API_KEY)
 
 def recomendacion_gemini(clase_detectada: str) -> str:
-    """Genera una recomendación de primeros auxilios."""
-    if not cliente_gemini:
-        return "Asistente de IA no disponible."
-
-    prompt = f"""
-    Actúa como un experto asistente de primeros auxilios. La lesión ha sido clasificada 
-    por un modelo de visión artificial como: **{clase_detectada}**.
-    
-    Genera una respuesta profesional, que al mismo tiempo sea facil de entender, clara y 
-    concisa que se enfoque en los primeros auxilios. 
-    Incluye:
-    1. Una breve descripción de la lesión.
-    2. Tres pasos cruciales de acción inmediata (qué hacer).
-    3. Una advertencia clara (qué NO hacer).
-    Formatea la respuesta usando saltos de línea para facilitar la lectura.
-    """
-    
+    """Genera una recomendación de primeros auxilios usando Gemini."""
     try:
-        respuesta = cliente_gemini.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt
-        )
-        return respuesta
+        prompt = f"""
+        Actúa como un experto asistente de primeros auxilios. 
+        La lesión ha sido clasificada por un modelo de visión artificial como: **{clase_detectada}**.
+
+        Genera una respuesta profesional, fácil de entender, clara y concisa sobre los primeros auxilios.
+        Incluye:
+        1. Una breve descripción de la lesión.
+        2. Tres pasos cruciales de acción inmediata (qué hacer).
+        3. Una advertencia clara (qué NO hacer).
+
+        Usa saltos de línea para mejorar la legibilidad.
+        """
+
+        model = genai.GenerativeModel("gemini-1.5-flash")  # ✅ modelo correcto
+        respuesta = model.generate_content(prompt)
+
+        return respuesta.text  # ✅ devuelve solo el texto
     except Exception as e:
         return f"Error al generar la recomendación: {e}"
+
 
 # --- Configuración base ---
 app = FastAPI(title="IA First Aid API")
 
-# Habilitar CORS
+# --- CORS ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Cambiar en producción
@@ -51,7 +48,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Modelo de imágenes ---
+# --- Cargar modelo de imagen ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # frontend/
 PROJECT_ROOT = os.path.dirname(BASE_DIR)               # IA-Convolucional/
 modelo_path = os.path.join(PROJECT_ROOT, "modelo_quemaduras_cortadas.h5")
@@ -65,7 +62,8 @@ clases = ["quemaduras", "cortadas"]
 TEMP_DIR = os.path.join(BASE_DIR, "temp")
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-# --- Endpoint para predicción de imagen ---
+
+# --- Endpoint de predicción ---
 @app.post("/predict/")
 async def predict_image(file: UploadFile = File(...)):
     try:
@@ -82,14 +80,13 @@ async def predict_image(file: UploadFile = File(...)):
         probabilidad = float(np.max(prediccion))
         clase_detectada = clases[clase_idx]
 
-        # Llamada a Gemini
+        # ✅ Llamada a Gemini
         instrucciones_ai = recomendacion_gemini(clase_detectada)
-        
-        # Borrar imagen temporal
-        os.remove(ruta_temp)
+
+        os.remove(ruta_temp)  # eliminar imagen temporal
 
         return {
-            "clase": clases[clase_idx],
+            "clase": clase_detectada,
             "probabilidad": probabilidad,
             "instrucciones": instrucciones_ai
         }
