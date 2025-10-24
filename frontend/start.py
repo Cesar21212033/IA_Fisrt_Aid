@@ -11,7 +11,7 @@ app = FastAPI()
 # --- Detectar la raíz del proyecto ---
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))  # frontend/
 PROJECT_ROOT = os.path.dirname(CURRENT_DIR)               # IA-Convolucional/
-MODEL_FILENAME = "modelo_quemaduras_cortadas.h5"
+MODEL_FILENAME = "modelo_quemaduras_cortadas.keras"
 MODEL_PATH = os.path.join(PROJECT_ROOT, MODEL_FILENAME)
 
 if not os.path.exists(MODEL_PATH):

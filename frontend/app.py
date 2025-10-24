@@ -51,7 +51,7 @@ app.add_middleware(
 # --- Cargar modelo de imagen ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # frontend/
 PROJECT_ROOT = os.path.dirname(BASE_DIR)               # IA-Convolucional/
-modelo_path = os.path.join(PROJECT_ROOT, "modelo_quemaduras_cortadas.h5")
+modelo_path = os.path.join(PROJECT_ROOT, "modelo_quemaduras_cortadas.keras")
 
 if not os.path.exists(modelo_path):
     raise FileNotFoundError(f"No se encontró el modelo en {modelo_path}")
