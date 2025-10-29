@@ -1,71 +1,70 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { FaArrowLeft, FaCamera } from 'react-icons/fa'
-import auxiLogo from '../assets/auxi.png'
+import React, { useState, useEffect } from "react";
+import { useNavigate } from 'react-router-dom';
+import { FaArrowLeft, FaCamera } from 'react-icons/fa';
+import auxiLogo from '../assets/auxi.png';
 
-/**
- * ANÁLISIS POR IMAGEN - Subir foto de la lesión
- * 
- * Esta página es para cuando la enfermera puede tomar una foto de la lesión del estudiante.
- * 
- * ¿Qué hace?
- * - Permite subir una imagen (PNG, JPG, GIF)
- * - Muestra una vista previa de la imagen seleccionada
- * - Simula el análisis de la IA (por ahora solo muestra "Analizando...")
- * - Al terminar, lleva a la página de resultados
- * 
- * ¿Para qué sirve?
- * - Para lesiones visibles como cortes, quemaduras, golpes, etc.
- * - La IA puede "ver" la imagen y dar recomendaciones específicas
- * 
- * Flujo: Enfermera toma foto → Sube imagen → IA analiza → Ve resultados
- */
+export default function ImageAnalysis() {
+  const navigate = useNavigate();
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [serverStatus, setServerStatus] = useState("⏳ Verificando conexión...");
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-function ImageAnalysis() {
-  const navigate = useNavigate()
-  const [selectedImage, setSelectedImage] = useState(null)
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  // ==============================
+  // 🔹 Verificar conexión con el backend
+  // ==============================
+  useEffect(() => {
+    fetch("http://127.0.0.1:8001/")
+      .then((res) => res.json())
+      .then((data) => setServerStatus(data.mensaje))
+      .catch(() => setServerStatus("No se pudo conectar con el servidor FastAPI."));
+  }, []);
 
-  const handleImageUpload = (event) => {
-    const file = event.target.files[0]
-    if (file) {
-      setSelectedImage(file)
-    }
-  }
+  // ==============================
+  // 🔹 Manejar selección de imagen
+  // ==============================
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    setSelectedFile(file);
+    setResult(null);
+  };
 
-  const handleAnalyze = async () => {
-  if (!selectedImage) return;
-  setIsAnalyzing(true);
-
-  try {
-    // Preparar FormData con la imagen
-    const formData = new FormData();
-    formData.append("file", selectedImage);
-
-    // Enviar al backend
-    const response = await fetch("http://localhost:8000/predict/", {
-      method: "POST",
-      body: formData,
-    });
-
-    const data = await response.json();
-    setIsAnalyzing(false);
-
-    if (data.error) {
-      alert(data.error);
+  // ==============================
+  // 🔹 Enviar imagen al backend para analizar y entrenar incremental
+  // ==============================
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      alert("Selecciona una imagen primero.");
       return;
     }
 
-    // Redirigir a la página de resultados y pasar la predicción
-    navigate("/diagnosis-results", { state: data });
+    setLoading(true);
+    setResult(null);
 
-  } catch (err) {
-    setIsAnalyzing(false);
-    alert("Error al analizar la imagen. Revisa que el backend esté corriendo.");
-  }
-};
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("clase", "quemaduras"); // o "cortadas", según corresponda
 
+      const response = await fetch("http://127.0.0.1:8001/predict_and_train/", {
+        method: "POST",
+        body: formData,
+      });
 
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || JSON.stringify(data));
+
+      setResult(data); // Resultado con predicción + recomendaciones + entrenamiento
+      console.log("Resultado:", data);
+
+    } catch (error) {
+      console.error("Error al procesar la imagen:", error);
+      const message = error.message ? error.message : JSON.stringify(error);
+      alert(`Hubo un error al procesar la imagen: ${message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -82,16 +81,12 @@ function ImageAnalysis() {
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <img 
-                    src={auxiLogo} 
-                    alt="Auxi.ai Logo" 
-                    className="w-10 h-10 object-contain"
-                  />
+                  <img src={auxiLogo} alt="Auxi.ai Logo" className="w-10 h-10 object-contain" />
                 </div>
               </div>
               <div className="ml-4">
                 <h1 className="text-2xl font-bold text-gray-900">Análisis por Imagen</h1>
-                <p className="text-sm text-gray-600">Diagnóstico visual de lesiones</p>
+                <p className="text-sm text-gray-600">{serverStatus}</p>
               </div>
             </div>
           </div>
@@ -114,40 +109,37 @@ function ImageAnalysis() {
               </div>
               <div className="mb-4">
                 <label htmlFor="image-upload" className="cursor-pointer">
-                  <span className="text-lg font-medium text-indigo-600 hover:text-indigo-500">
-                    Haz clic para subir
-                  </span>
+                  <span className="text-lg font-medium text-indigo-600 hover:text-indigo-500">Haz clic para subir</span>
                   <span className="text-gray-600"> o arrastra y suelta</span>
                 </label>
                 <input
                   id="image-upload"
                   type="file"
                   accept="image/*"
-                  onChange={handleImageUpload}
+                  onChange={handleFileChange}
                   className="hidden"
                 />
               </div>
-              <p className="text-sm text-gray-500">
-                PNG, JPG, GIF hasta 10MB
-              </p>
+              <p className="text-sm text-gray-500">PNG, JPG, GIF hasta 10MB</p>
             </div>
 
-            {selectedImage && (
+            {/* Vista previa */}
+            {selectedFile && (
               <div className="mt-6">
                 <h4 className="text-lg font-medium text-gray-900 mb-3">Imagen seleccionada:</h4>
                 <div className="relative">
                   <img
-                    src={URL.createObjectURL(selectedImage)}
+                    src={URL.createObjectURL(selectedFile)}
                     alt="Preview"
                     className="w-full h-64 object-cover rounded-lg"
                   />
                 </div>
                 <button 
-                  onClick={handleAnalyze}
-                  disabled={isAnalyzing}
+                  onClick={handleUpload}
+                  disabled={loading}
                   className="mt-4 w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isAnalyzing ? (
+                  {loading ? (
                     <div className="flex items-center justify-center">
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                       Analizando imagen...
@@ -158,11 +150,29 @@ function ImageAnalysis() {
                 </button>
               </div>
             )}
+
+            {/* Resultados */}
+            {result && (
+              <div className="mt-8 bg-gray-50 rounded-2xl shadow-inner p-6 w-full text-center">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">Resultado</h2>
+                <p className="text-gray-700 mb-2">
+                  <strong>Clase detectada:</strong> {result.clase}
+                </p>
+                <p className="text-gray-700 mb-4">
+                  <strong>Probabilidad:</strong> {(result.probabilidad * 100).toFixed(2)}%
+                </p>
+                <h3 className="text-xl font-semibold mt-4 mb-2 text-blue-600">
+                  🩺 Recomendación de primeros auxilios
+                </h3>
+                <p className="whitespace-pre-line text-gray-700">{result.instrucciones}</p>
+                <p className="mt-4 text-green-700 font-medium">
+                  {result.mensaje}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </main>
     </div>
-  )
+  );
 }
-
-export default ImageAnalysis

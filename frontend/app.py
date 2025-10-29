@@ -1,96 +1,137 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
-import shutil
 import os
+import sys
 import numpy as np
-from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.image import load_img, img_to_array
-import google.generativeai as genai  # ✅ Importación correcta
+from tensorflow.keras.preprocessing.image import img_to_array
+from io import BytesIO
+from PIL import Image
+import threading
+import google.generativeai as genai
+import logging
 
-# === CONFIGURACIÓN DE GEMINI ===
-GEMINI_API_KEY = "AIzaSyBcy89im5JOLDfQKLaEN9G2eTUBhl1YNzo"
-genai.configure(api_key=GEMINI_API_KEY)
-
-
-def recomendacion_gemini(clase_detectada: str) -> str:
-    """Genera una recomendación de primeros auxilios usando Gemini."""
-    try:
-        prompt = f"""
-        Actúa como un experto asistente de primeros auxilios. 
-        La lesión ha sido clasificada por un modelo de visión artificial como: **{clase_detectada}**.
-
-        Genera una respuesta profesional, fácil de entender, clara y concisa sobre los primeros auxilios.
-        Incluye:
-        1. Una breve descripción de la lesión.
-        2. Tres pasos cruciales de acción inmediata (qué hacer).
-        3. Una advertencia clara (qué NO hacer).
-
-        Usa saltos de línea para mejorar la legibilidad.
-        """
-
-        model = genai.GenerativeModel("gemini-2.5-flash")  # ✅ modelo correcto
-        respuesta = model.generate_content(prompt)
-
-        return respuesta.text  # ✅ devuelve solo el texto
-    except Exception as e:
-        return f"Error al generar la recomendación: {e}"
-
-
-# --- Configuración base ---
+# ==========================
+# Config FastAPI y CORS
+# ==========================
 app = FastAPI(title="IA First Aid API")
-
-# --- CORS ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Cambiar en producción
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- Cargar modelo de imagen ---
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # frontend/
-PROJECT_ROOT = os.path.dirname(BASE_DIR)               # IA-Convolucional/
-modelo_path = os.path.join(PROJECT_ROOT, "modelo_quemaduras_cortadas.keras")
+# ==========================
+# Rutas y proyecto
+# ==========================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+sys.path.append(PROJECT_ROOT)
 
-if not os.path.exists(modelo_path):
-    raise FileNotFoundError(f"No se encontró el modelo en {modelo_path}")
+from model import ModelManager, clases  # traigo el modelo y las clases
 
-modelo = load_model(modelo_path, compile=False)
-clases = ["quemaduras", "cortadas"]
+# ==========================
+# Config Gemini API
+# ==========================
+GEMINI_API_KEY = "AIzaSyBcy89im5JOLDfQKLaEN9G2eTUBhl1YNzo"
+genai.configure(api_key=GEMINI_API_KEY)
 
-TEMP_DIR = os.path.join(BASE_DIR, "temp")
-os.makedirs(TEMP_DIR, exist_ok=True)
+def recomendacion_gemini(clase_detectada: str) -> str:
+    """Pido al AI que me diga qué hacer según la lesión"""
+    prompt = f"""
+    Actúa como un experto asistente de primeros auxilios. 
+    La lesión ha sido clasificada como: **{clase_detectada}**.
 
-
-# --- Endpoint de predicción ---
-@app.post("/predict/")
-async def predict_image(file: UploadFile = File(...)):
+    Genera una respuesta profesional, clara y concisa sobre primeros auxilios.
+    Incluye:
+    1. Breve descripción de la lesión.
+    2. Tres pasos cruciales de acción inmediata.
+    3. Una advertencia clara (qué NO hacer).
+    """
     try:
-        ruta_temp = os.path.join(TEMP_DIR, file.filename)
-        with open(ruta_temp, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        respuesta = model.generate_content(prompt)
+        return respuesta.text
+    except Exception as e:
+        return f"Error al generar la recomendación: {e}"
 
-        img = load_img(ruta_temp, target_size=(128, 128))
-        img_array = img_to_array(img) / 255.0
-        img_array = np.expand_dims(img_array, axis=0)
 
-        prediccion = modelo.predict(img_array, verbose=0)
-        clase_idx = int(np.argmax(prediccion))
-        probabilidad = float(np.max(prediccion))
-        clase_detectada = clases[clase_idx]
+# ==========================
+# Inicialización del modelo
+# ==========================
+modelo_path = os.path.join(PROJECT_ROOT, "modelo_quemaduras_cortadas.keras")
+modelo_manager = ModelManager(modelo_path)
+modelo_lock = threading.Lock()  # bloqueo para evitar que varios entrenen a la vez
 
-        # ✅ Llamada a Gemini
-        instrucciones_ai = recomendacion_gemini(clase_detectada)
+# ==========================
+# Procesamiento de imagen
+# ==========================
+def procesar_imagen_memoria(contents: bytes):
+    """Convierto la imagen a array listo para el modelo"""
+    try:
+        with Image.open(BytesIO(contents)) as img:
+            img = img.convert("RGB").resize((128, 128))
+            img_array = np.expand_dims(img_to_array(img) / 255.0, axis=0)
+        return img_array
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"No se pudo procesar la imagen: {e}")
 
-        os.remove(ruta_temp)  # eliminar imagen temporal
 
-        return {
-            "clase": clase_detectada,
-            "probabilidad": probabilidad,
-            "instrucciones": instrucciones_ai
-        }
+# ==========================
+# Entrenamiento incremental
+# ==========================
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+
+def train_on_new_image(contents: bytes, clase: str):
+    """Entrena rápido con la nueva imagen y reemplaza el modelo guardado"""
+    try:
+        img_array = procesar_imagen_memoria(contents)
+        clase_idx = clases.index(clase)
+        y = np.array([clase_idx])
+
+        with modelo_lock:
+            modelo_manager.model.train_on_batch(img_array, y)
+            # guardo en temporal en la misma carpeta que el modelo original
+            save_path = os.path.join(PROJECT_ROOT, "modelo_quemaduras_cortadas_tmp.keras")
+            modelo_manager.model.save(save_path, overwrite=True)
+            # reemplazo el modelo original en la raíz del proyecto
+            os.replace(save_path, os.path.join(PROJECT_ROOT, "modelo_quemaduras_cortadas.keras"))
+            modelo_manager.reload_model()
+
+        logging.info(f"Entrenamiento incremental completado para la clase {clase}")
 
     except Exception as e:
-        print("ERROR EN /predict/:", e)
-        raise HTTPException(status_code=500, detail=f"Ocurrió un error: {e}")
+        logging.error(f"Error en entrenamiento incremental: {e}")
+
+
+# ==========================
+# Endpoint predict + train
+# ==========================
+@app.post("/predict_and_train/")
+async def predict_and_train(file: UploadFile = File(...), clase: str = Form(...)):
+    if clase not in clases:
+        raise HTTPException(status_code=400, detail=f"La clase debe ser una de {clases}")
+
+    # predicción
+    contents = await file.read()
+    img_array = procesar_imagen_memoria(contents)
+    with modelo_lock:
+        prediccion = modelo_manager.predict(img_array)
+
+    clase_idx = int(np.argmax(prediccion))
+    probabilidad = float(np.max(prediccion))
+    clase_detectada = clases[clase_idx]
+
+    instrucciones_ai = recomendacion_gemini(clase_detectada)
+
+    # entrenamiento incremental
+    train_on_new_image(contents, clase)
+
+    # regreso todo lo importante
+    return {
+        "clase": clase_detectada,
+        "probabilidad": probabilidad,
+        "instrucciones": instrucciones_ai,
+        "mensaje": f"Entrenamiento incremental realizado para la clase {clase}"
+    }
