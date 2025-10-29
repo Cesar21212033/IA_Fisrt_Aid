@@ -135,3 +135,47 @@ async def predict_and_train(file: UploadFile = File(...), clase: str = Form(...)
         "instrucciones": instrucciones_ai,
         "mensaje": f"Entrenamiento incremental realizado para la clase {clase}"
     }
+
+from pydantic import BaseModel
+
+# ==========================
+# Modelo para la solicitud de análisis de síntomas por texto
+# ==========================
+class SymptomRequest(BaseModel):
+    symptoms: str
+
+# ==========================
+# Endpoint para recomendaciones basadas en texto
+# ==========================
+@app.post("/analyze-symptoms/")
+async def analyze_symptoms(request: SymptomRequest):
+    texto = request.symptoms.strip().lower()
+
+    # Validar que mencione extremidad y tipo de lesión
+    extremidad_valida = any(x in texto for x in ["brazo", "pierna"])
+    tipo_valido = any(x in texto for x in ["cortada", "corte", "quemadura"])
+
+    if not (extremidad_valida and tipo_valido):
+        raise HTTPException(
+            status_code=400, 
+            detail="Solo se permiten descripciones de cortadas o quemaduras en brazos o piernas."
+        )
+
+    try:
+        prompt = f"""
+        Actúa como un experto en primeros auxilios. Un estudiante presenta la siguiente herida:
+        {request.symptoms}
+
+        Proporciona:
+        1. Breve descripción de la lesión
+        2. Tres pasos cruciales de acción inmediata
+        3. Advertencias claras de lo que NO se debe hacer
+        """
+
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        respuesta = model.generate_content(prompt)
+
+        return {"respuesta": respuesta.text}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al generar la recomendación: {e}")

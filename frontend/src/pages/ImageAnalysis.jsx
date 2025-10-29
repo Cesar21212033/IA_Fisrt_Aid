@@ -20,6 +20,13 @@ export default function ImageAnalysis() {
       .catch(() => setServerStatus("No se pudo conectar con el servidor FastAPI."));
   }, []);
 
+  // Agrega esta función dentro del componente ImageAnalysis
+const handleReset = () => {
+  setSelectedFile(null);
+  setResult(null);
+};
+
+
   // ==============================
   // 🔹 Manejar selección de imagen
   // ==============================
@@ -153,23 +160,32 @@ export default function ImageAnalysis() {
 
             {/* Resultados */}
             {result && (
-              <div className="mt-8 bg-gray-50 rounded-2xl shadow-inner p-6 w-full text-center">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">Resultado</h2>
-                <p className="text-gray-700 mb-2">
-                  <strong>Clase detectada:</strong> {result.clase}
-                </p>
-                <p className="text-gray-700 mb-4">
-                  <strong>Probabilidad:</strong> {(result.probabilidad * 100).toFixed(2)}%
-                </p>
-                <h3 className="text-xl font-semibold mt-4 mb-2 text-blue-600">
-                  🩺 Recomendación de primeros auxilios
-                </h3>
-                <p className="whitespace-pre-line text-gray-700">{result.instrucciones}</p>
-                <p className="mt-4 text-green-700 font-medium">
-                  {result.mensaje}
-                </p>
-              </div>
-            )}
+  <div className="mt-8 bg-gray-50 rounded-2xl shadow-inner p-6 w-full text-center">
+    <h2 className="text-2xl font-bold text-gray-800 mb-4">Resultado</h2>
+    <p className="text-gray-700 mb-2">
+      <strong>Clase detectada:</strong> {result.clase}
+    </p>
+    <p className="text-gray-700 mb-4">
+      <strong>Probabilidad:</strong> {(result.probabilidad * 100).toFixed(2)}%
+    </p>
+    <h3 className="text-xl font-semibold mt-4 mb-2 text-blue-600">
+      🩺 Recomendación de primeros auxilios
+    </h3>
+    <p className="whitespace-pre-line text-gray-700">{result.instrucciones}</p>
+    <p className="mt-4 text-green-700 font-medium">
+      {result.mensaje}
+    </p>
+
+    {/* Botón para limpiar y hacer un nuevo análisis */}
+    <button
+      onClick={handleReset}
+      className="mt-6 w-full bg-green-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center"
+    >
+      Nuevo análisis
+    </button>
+  </div>
+)}
+
           </div>
         </div>
       </main>
