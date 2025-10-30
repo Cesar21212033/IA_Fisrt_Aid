@@ -9,6 +9,10 @@ from PIL import Image
 import threading
 import google.generativeai as genai
 import logging
+from conexion import obtener_historial
+from conexion import guardar_diagnostico
+
+
 
 # ==========================
 # Config FastAPI y CORS
@@ -104,6 +108,7 @@ def train_on_new_image(contents: bytes, clase: str):
     except Exception as e:
         logging.error(f"Error en entrenamiento incremental: {e}")
 
+from conexion import guardar_diagnostico
 
 # ==========================
 # Endpoint predict + train
@@ -125,6 +130,13 @@ async def predict_and_train(file: UploadFile = File(...), clase: str = Form(...)
 
     instrucciones_ai = recomendacion_gemini(clase_detectada)
 
+    #  Guardar en bd
+    guardar_diagnostico(
+        tipo="imagen",
+        clase=clase_detectada,
+        instrucciones=instrucciones_ai
+    )
+
     # entrenamiento incremental
     train_on_new_image(contents, clase)
 
@@ -143,6 +155,7 @@ from pydantic import BaseModel
 # ==========================
 class SymptomRequest(BaseModel):
     symptoms: str
+
 
 # ==========================
 # Endpoint para recomendaciones basadas en texto
@@ -175,7 +188,35 @@ async def analyze_symptoms(request: SymptomRequest):
         model = genai.GenerativeModel("gemini-2.5-flash")
         respuesta = model.generate_content(prompt)
 
+        # =========================
+        # Determinar clase detectada
+        # =========================
+        if "quemadura" in texto:
+            clase_detectada = "quemaduras"
+        elif "cortada" in texto or "corte" in texto:
+            clase_detectada = "cortadas"
+        else:
+            clase_detectada = "desconocida"
+
+        # =========================
+        # Guardar en base de datos
+        # =========================
+        guardar_diagnostico(
+            tipo="texto",
+            clase=clase_detectada,
+            instrucciones=respuesta.text
+        )
+
         return {"respuesta": respuesta.text}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al generar la recomendación: {e}")
+    
+    # Endpoint para historial
+@app.get("/historial/")
+def historial():
+    try:
+        registros = obtener_historial()
+        return registros
+    except Exception as e:
+        return {"error": str(e)}
