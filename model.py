@@ -56,10 +56,10 @@ train_datagen = ImageDataGenerator(
 val_datagen = ImageDataGenerator(rescale=1./255)
 
 # Creo los lotes de imágenes desde las carpetas correspondientes
-# 🔹 Ruta base de este archivo model.py
+#  Ruta base de este archivo model.py
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# 🔹 Rutas absolutas a los datos
+#  Rutas absolutas a los datos
 TRAIN_DIR = os.path.join(BASE_DIR, "data/train")
 VAL_DIR = os.path.join(BASE_DIR, "data/val")
 
@@ -103,7 +103,8 @@ model = Sequential([
 # ===========================
 # Compilar modelo
 # ===========================
-# Compilo el modelo usando Adam como optimizador y entropía cruzada como función de pérdida.
+# Compilo el modelo usando Adam como optimizador y entropía 
+# cruzada como función de pérdida.
 # También mido la precisión para ver el rendimiento.
 model.compile(
     optimizer='adam',
@@ -112,14 +113,16 @@ model.compile(
 )
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 
-# Uso EarlyStopping para detener el entrenamiento si no mejora la validación después de cierto número de épocas.
+# Uso EarlyStopping para detener el entrenamiento si no mejora la 
+# validación después de cierto número de épocas.
 early_stop = EarlyStopping(
     monitor='val_loss',  # también puedo usar 'val_accuracy'
     patience=10,
     restore_best_weights=True
 )
 
-# Uso ModelCheckpoint para guardar automáticamente el mejor modelo basado en la precisión de validación.
+# Uso ModelCheckpoint para guardar automáticamente el mejoR
+#  modelo basado en la precisión de validación.
 checkpoint = ModelCheckpoint(
     "modelo_quemaduras_cortadas.keras",  # mismo nombre que mi archivo actual
     monitor="val_accuracy",            # guarda cuando mejora la precisión en validación
@@ -139,19 +142,11 @@ history = model.fit(
     epochs=200,
     callbacks=[early_stop, checkpoint]
 )
-
-##history = model.fit(
-#    train_generator,
-#    validation_data=val_generator,
-#    epochs=200  # aumenta número de épocas
-#)
-
 # ===========================
 # Guardar modelo
 # ===========================
 # Guardo el modelo final entrenado en un archivo .keras
 model.save("modelo_quemaduras_cortadas.keras")
-
 
 # ===========================
 # Clase para manejar el modelo guardado
@@ -172,7 +167,7 @@ class ModelManager:
             if modified > self.last_modified or self.model is None:
                 self.model = load_model(self.path_model)
                 self.last_modified = modified
-                print(f" Modelo recargado: {time.ctime(modified)}")
+                print(f" Modelo recargado: {time.ctime(modified)}") 
         except Exception as e:
             print(f" Error al cargar el modelo: {e}")
     

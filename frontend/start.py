@@ -38,7 +38,6 @@ def run_command(cmd, name, cwd=None):
         cwd=cwd  # <-- aquí se define la carpeta
     )
 
-
     try:
         for line in iter(process.stdout.readline, ''):
             if line:

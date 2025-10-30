@@ -11,7 +11,7 @@ export default function ImageAnalysis() {
   const [loading, setLoading] = useState(false);
 
   // ==============================
-  // 🔹 Verificar conexión con el backend
+  //  Verificar conexión con el backend
   // ==============================
   useEffect(() => {
     fetch("http://127.0.0.1:8001/")
@@ -28,7 +28,7 @@ const handleReset = () => {
 
 
   // ==============================
-  // 🔹 Manejar selección de imagen
+  //  Manejar selección de imagen
   // ==============================
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -37,7 +37,7 @@ const handleReset = () => {
   };
 
   // ==============================
-  // 🔹 Enviar imagen al backend para analizar y entrenar incremental
+  //  Enviar imagen al backend para analizar y entrenar incremental
   // ==============================
   const handleUpload = async () => {
     if (!selectedFile) {
