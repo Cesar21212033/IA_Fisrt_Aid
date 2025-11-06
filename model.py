@@ -94,7 +94,7 @@ model = Sequential([
     MaxPooling2D(2,2),
 
     Flatten(),
-    Dense(128, activation='relu'),
+    Dense(256, activation='relu'),
     Dropout(0.5),
 
     Dense(2, activation='softmax')  # 2 clases: quemaduras y cortadas
