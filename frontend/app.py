@@ -11,6 +11,8 @@ import google.generativeai as genai
 import logging
 from conexion import obtener_historial
 from conexion import guardar_diagnostico
+from conexion import guardar_conversacion
+from conexion import obtener_conversaciones
 
 
 
@@ -160,11 +162,12 @@ async def predict_and_train(
     # entrenamiento incremental
     train_on_new_image(contents, clase)
 
-    # regreso todo lo importante
+    # regreso todo lo importante (incluyendo el ID del diagnóstico guardado)
     return {
         "clase": clase_detectada,
         "probabilidad": probabilidad,
         "instrucciones": instrucciones_ai,
+        "diagnostico_id": resultado_bd.get("id"),  # ID del diagnóstico guardado
         "mensaje": f"Entrenamiento incremental realizado para la clase {clase}"
     }
 
@@ -245,7 +248,10 @@ async def analyze_symptoms(request: SymptomRequest):
         else:
             print(f"Guardado exitoso en BD: {resultado_bd.get('mensaje', 'OK')}")
 
-        return {"respuesta": respuesta.text}
+        return {
+            "respuesta": respuesta.text,
+            "diagnostico_id": resultado_bd.get("id")  # ID del diagnóstico guardado
+        }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al generar la recomendación: {e}")
@@ -256,5 +262,69 @@ def historial():
     try:
         registros = obtener_historial()
         return registros
+    except Exception as e:
+        return {"error": str(e)}
+
+# ==========================
+# Modelo para pregunta sobre diagnóstico
+# ==========================
+class PreguntaRequest(BaseModel):
+    diagnostico_id: int
+    pregunta: str
+    numero_control: str
+    clase_detectada: str
+    instrucciones_originales: str
+
+# ==========================
+# Endpoint para hacer preguntas sobre el diagnóstico
+# ==========================
+@app.post("/preguntar-diagnostico/")
+async def preguntar_diagnostico(request: PreguntaRequest):
+    try:
+        # Crear contexto para Gemini con el diagnóstico original
+        contexto = f"""
+        Contexto del diagnóstico:
+        - Clase detectada: {request.clase_detectada}
+        - Recomendaciones originales: {request.instrucciones_originales}
+        
+        Pregunta del usuario: {request.pregunta}
+        
+        Responde la pregunta del usuario basándote en el contexto del diagnóstico proporcionado.
+        Mantén un tono profesional y médico. Si la pregunta no está relacionada con el diagnóstico,
+        indícalo educadamente y ofrece ayuda relacionada con primeros auxilios.
+        """
+        
+        # Generar respuesta con Gemini
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        respuesta_obj = model.generate_content(contexto)
+        respuesta_texto = respuesta_obj.text
+
+        # Guardar la conversación en la BD
+        resultado_guardado = guardar_conversacion(
+            diagnostico_id=request.diagnostico_id,
+            numero_control=request.numero_control,
+            pregunta=request.pregunta,
+            respuesta=respuesta_texto
+        )
+
+        if "error" in resultado_guardado:
+            print(f"Error guardando conversación: {resultado_guardado['error']}")
+
+        return {
+            "respuesta": respuesta_texto,
+            "conversacion_id": resultado_guardado.get("id")
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al generar la respuesta: {e}")
+
+# ==========================
+# Endpoint para obtener conversaciones de un diagnóstico
+# ==========================
+@app.get("/conversaciones/{diagnostico_id}")
+def obtener_conversaciones_endpoint(diagnostico_id: int):
+    try:
+        conversaciones = obtener_conversaciones(diagnostico_id)
+        return conversaciones
     except Exception as e:
         return {"error": str(e)}

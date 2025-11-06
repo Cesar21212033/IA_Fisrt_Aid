@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 
 import { useNavigate, useLocation } from 'react-router-dom'
 
-import { FaArrowLeft, FaSave, FaPlus } from 'react-icons/fa'
+import { FaArrowLeft, FaPlus, FaPaperPlane, FaUser, FaRobot } from 'react-icons/fa'
 
 import auxiLogo from '../assets/auxi.png'
 
@@ -27,8 +27,14 @@ function DiagnosisResults() {
     numero_control,
     nombre_completo,
     fecha,
-    desdeHistorial 
+    desdeHistorial,
+    diagnostico_id 
   } = analysisData
+
+  // Estados para el chat de preguntas
+  const [pregunta, setPregunta] = useState('')
+  const [conversaciones, setConversaciones] = useState([])
+  const [loadingPregunta, setLoadingPregunta] = useState(false)
 
   // Limpiar la URL del blob cuando el componente se desmonte
   useEffect(() => {
@@ -76,7 +82,63 @@ function DiagnosisResults() {
 
   const diagnosisData = getDiagnosisData(currentSeverity)
 
-  const handleSaveResult = () => console.log("Guardando resultado del diagnóstico...")
+  // Cargar conversaciones previas si hay diagnostico_id
+  useEffect(() => {
+    if (diagnostico_id) {
+      fetch(`http://127.0.0.1:8001/conversaciones/${diagnostico_id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            setConversaciones(data)
+          }
+        })
+        .catch(err => console.error("Error cargando conversaciones:", err))
+    }
+  }, [diagnostico_id])
+
+  const handlePregunta = async () => {
+    if (!pregunta.trim() || !diagnostico_id) {
+      alert("Por favor ingresa una pregunta válida.")
+      return
+    }
+
+    setLoadingPregunta(true)
+    const preguntaEnviar = pregunta.trim()
+    setPregunta('') // Limpiar el input
+
+    try {
+      const response = await fetch("http://127.0.0.1:8001/preguntar-diagnostico/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          diagnostico_id: diagnostico_id,
+          pregunta: preguntaEnviar,
+          numero_control: numero_control || '',
+          clase_detectada: clase,
+          instrucciones_originales: instrucciones || respuesta || ''
+        }),
+      })
+
+      const data = await response.json()
+      
+      if (data.respuesta) {
+        // Agregar la nueva conversación al estado
+        const nuevaConversacion = {
+          pregunta: preguntaEnviar,
+          respuesta: data.respuesta,
+          fecha: new Date().toISOString()
+        }
+        setConversaciones([...conversaciones, nuevaConversacion])
+      } else {
+        alert("Error al generar la respuesta. Intenta nuevamente.")
+      }
+    } catch (error) {
+      console.error("Error al hacer la pregunta:", error)
+      alert("Ocurrió un error al comunicarse con el servidor.")
+    } finally {
+      setLoadingPregunta(false)
+    }
+  }
 
   const handleNewDiagnosis = () => navigate('/')
 
@@ -208,17 +270,91 @@ function DiagnosisResults() {
 
     )}
 
-  {/* Action Buttons */}
+        {/* Sección de Preguntas sobre el Diagnóstico */}
+        {diagnostico_id && (
+          <div className="bg-white p-6 rounded-xl shadow-md mb-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">
+              ¿Tienes preguntas sobre este diagnóstico?
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Puedes hacer preguntas sobre las recomendaciones o el análisis realizado.
+            </p>
 
-  <div className="flex gap-4">
+            {/* Historial de conversaciones */}
+            {conversaciones.length > 0 && (
+              <div className="mb-4 space-y-4 max-h-96 overflow-y-auto pr-2">
+                {conversaciones.map((conv, index) => (
+                  <div key={index} className="space-y-3">
+                    {/* Pregunta del usuario */}
+                    <div className="flex items-start gap-2">
+                      <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <FaUser className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <div className="flex-1 bg-blue-50 rounded-lg p-3">
+                        <p className="text-sm font-medium text-gray-700 mb-1">Tú:</p>
+                        <p className="text-gray-800 whitespace-pre-line">{conv.pregunta}</p>
+                      </div>
+                    </div>
+                    {/* Respuesta de Gemini */}
+                    <div className="flex items-start gap-2">
+                      <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                        <FaRobot className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div className="flex-1 bg-green-50 rounded-lg p-3">
+                        <p className="text-sm font-medium text-gray-700 mb-1">Asistente IA:</p>
+                        <p className="text-gray-800 whitespace-pre-line">{conv.respuesta}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
-    <button onClick={handleNewDiagnosis} className="flex items-center bg-gray-700 text-white py-2 px-4 rounded">
+            {/* Input para nueva pregunta */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={pregunta}
+                onChange={(e) => setPregunta(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handlePregunta()
+                  }
+                }}
+                placeholder="Escribe tu pregunta aquí..."
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={loadingPregunta}
+              />
+              <button
+                onClick={handlePregunta}
+                disabled={!pregunta.trim() || loadingPregunta}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              >
+                {loadingPregunta ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                ) : (
+                  <>
+                    <FaPaperPlane className="mr-2" />
+                    Enviar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
 
-      <FaPlus className="mr-2"/> Nuevo
+        {/* Action Buttons */}
 
-    </button>
+        <div className="flex gap-4">
 
-  </div>
+          <button onClick={handleNewDiagnosis} className="flex items-center bg-gray-700 text-white py-2 px-4 rounded">
+
+            <FaPlus className="mr-2"/> Nuevo
+
+          </button>
+
+        </div>
 
 </main>
 

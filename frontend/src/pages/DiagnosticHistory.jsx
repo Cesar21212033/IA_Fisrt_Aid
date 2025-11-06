@@ -133,7 +133,8 @@ function DiagnosticHistory() {
       nombre_completo: diagnostic.nombre_completo,
       tipo: diagnostic.tipo,
       fecha: diagnostic.fechaCompleta,
-      desdeHistorial: true // Flag para indicar que viene del historial
+      desdeHistorial: true, // Flag para indicar que viene del historial
+      diagnostico_id: diagnostic.datosCompletos?.id || diagnostic.id // ID del diagnóstico para hacer preguntas
     }
     
     navigate('/diagnosis-results', { state: stateData })

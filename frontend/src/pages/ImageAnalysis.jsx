@@ -81,7 +81,10 @@ const handleReset = () => {
           probabilidad: data.probabilidad,
           instrucciones: data.instrucciones,
           imageUrl: imageUrl,
-          tipo: 'imagen'
+          tipo: 'imagen',
+          diagnostico_id: data.diagnostico_id, // ID del diagnóstico para hacer preguntas
+          numero_control: numeroControl.trim(),
+          nombre_completo: nombreCompleto.trim()
         }
       });
 

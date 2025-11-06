@@ -70,7 +70,10 @@ export default function TextWoundAnalysis() {
             respuesta: data.respuesta,
             instrucciones: data.respuesta, // La respuesta es la recomendación
             textoIngresado: description, // El texto que ingresó el usuario
-            tipo: 'texto'
+            tipo: 'texto',
+            diagnostico_id: data.diagnostico_id, // ID del diagnóstico para hacer preguntas
+            numero_control: numeroControl.trim(),
+            nombre_completo: nombreCompleto.trim()
           }
         });
       } else if (data.error) {

@@ -69,3 +69,59 @@ def obtener_historial():
         if conn.is_connected():
             cursor.close()
             conn.close()
+
+# ==========================
+# Guardar pregunta y respuesta
+# ==========================
+def guardar_conversacion(diagnostico_id, numero_control, pregunta, respuesta):
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        query = """
+            INSERT INTO conversaciones_diagnosticos 
+            (diagnostico_id, numero_control, pregunta, respuesta, fecha)
+            VALUES (%s, %s, %s, %s, NOW())
+        """
+
+        values = (diagnostico_id, numero_control, pregunta, respuesta)
+        
+        cursor.execute(query, values)
+        conn.commit()
+        
+        return {"mensaje": "Conversación guardada correctamente", "id": cursor.lastrowid}
+
+    except Error as e:
+        print(f"Error guardando conversación: {e}")
+        if conn and conn.is_connected():
+            conn.rollback()
+        return {"error": str(e)}
+
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
+
+# ==========================
+# Obtener conversaciones de un diagnóstico
+# ==========================
+def obtener_conversaciones(diagnostico_id):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT id, pregunta, respuesta, fecha
+            FROM conversaciones_diagnosticos 
+            WHERE diagnostico_id = %s
+            ORDER BY fecha ASC
+        """, (diagnostico_id,))
+        return cursor.fetchall()
+
+    except Error as e:
+        return {"error": str(e)}
+
+    finally:
+        if conn.is_connected():
+            cursor.close()
+            conn.close()
