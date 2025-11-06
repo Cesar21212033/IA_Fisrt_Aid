@@ -5,8 +5,10 @@ import threading
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
 import signal
+import time
+import requests
 from fastapi import FastAPI
-import requests,time
+
 app = FastAPI()
 
 # --- Detectar la raíz del proyecto ---

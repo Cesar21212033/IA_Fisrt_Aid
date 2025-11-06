@@ -7,8 +7,9 @@ export default function ImageAnalysis() {
   const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState(null);
   const [serverStatus, setServerStatus] = useState("⏳ Verificando conexión...");
-  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [numeroControl, setNumeroControl] = useState('');
+  const [nombreCompleto, setNombreCompleto] = useState('');
 
   // ==============================
   //  Verificar conexión con el backend
@@ -23,7 +24,6 @@ export default function ImageAnalysis() {
   // Agrega esta función dentro del componente ImageAnalysis
 const handleReset = () => {
   setSelectedFile(null);
-  setResult(null);
 };
 
 
@@ -33,7 +33,6 @@ const handleReset = () => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     setSelectedFile(file);
-    setResult(null);
   };
 
   // ==============================
@@ -45,13 +44,24 @@ const handleReset = () => {
       return;
     }
 
+    // Validar campos obligatorios
+    if (!numeroControl.trim()) {
+      alert("El número de control es obligatorio.");
+      return;
+    }
+    if (!nombreCompleto.trim()) {
+      alert("El nombre completo es obligatorio.");
+      return;
+    }
+
     setLoading(true);
-    setResult(null);
 
     try {
       const formData = new FormData();
       formData.append("file", selectedFile);
       formData.append("clase", "quemaduras"); // o "cortadas", según corresponda
+      formData.append("numero_control", numeroControl.trim());
+      formData.append("nombre_completo", nombreCompleto.trim());
 
       const response = await fetch("http://127.0.0.1:8001/predict_and_train/", {
         method: "POST",
@@ -61,8 +71,19 @@ const handleReset = () => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || JSON.stringify(data));
 
-      setResult(data); // Resultado con predicción + recomendaciones + entrenamiento
-      console.log("Resultado:", data);
+      // Crear URL de la imagen para mostrarla en DiagnosisResults
+      const imageUrl = URL.createObjectURL(selectedFile);
+      
+      // Navegar a DiagnosisResults con los datos
+      navigate('/diagnosis-results', {
+        state: {
+          clase: data.clase,
+          probabilidad: data.probabilidad,
+          instrucciones: data.instrucciones,
+          imageUrl: imageUrl,
+          tipo: 'imagen'
+        }
+      });
 
     } catch (error) {
       console.error("Error al procesar la imagen:", error);
@@ -110,6 +131,38 @@ const handleReset = () => {
               Subir Imagen de la Lesión
             </h3>
             
+            {/* Campos obligatorios */}
+            <div className="mb-6 space-y-4">
+              <div>
+                <label htmlFor="numero-control" className="block text-sm font-medium text-gray-700 mb-2">
+                  Número de Control <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="numero-control"
+                  type="text"
+                  value={numeroControl}
+                  onChange={(e) => setNumeroControl(e.target.value)}
+                  placeholder="Ingrese el número de control"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="nombre-completo" className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre Completo <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="nombre-completo"
+                  type="text"
+                  value={nombreCompleto}
+                  onChange={(e) => setNombreCompleto(e.target.value)}
+                  placeholder="Ingrese el nombre completo del estudiante"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  required
+                />
+              </div>
+            </div>
+            
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-indigo-400 transition-colors">
               <div className="mb-4">
                 <FaCamera className="mx-auto h-12 w-12 text-gray-400" />
@@ -143,7 +196,7 @@ const handleReset = () => {
                 </div>
                 <button 
                   onClick={handleUpload}
-                  disabled={loading}
+                  disabled={loading || !numeroControl.trim() || !nombreCompleto.trim()}
                   className="mt-4 w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
@@ -158,33 +211,6 @@ const handleReset = () => {
               </div>
             )}
 
-            {/* Resultados */}
-            {result && (
-  <div className="mt-8 bg-gray-50 rounded-2xl shadow-inner p-6 w-full text-center">
-    <h2 className="text-2xl font-bold text-gray-800 mb-4">Resultado</h2>
-    <p className="text-gray-700 mb-2">
-      <strong>Clase detectada:</strong> {result.clase}
-    </p>
-    <p className="text-gray-700 mb-4">
-      <strong>Probabilidad:</strong> {(result.probabilidad * 100).toFixed(2)}%
-    </p>
-    <h3 className="text-xl font-semibold mt-4 mb-2 text-blue-600">
-      🩺 Recomendación de primeros auxilios
-    </h3>
-    <p className="whitespace-pre-line text-gray-700">{result.instrucciones}</p>
-    <p className="mt-4 text-green-700 font-medium">
-      {result.mensaje}
-    </p>
-
-    {/* Botón para limpiar y hacer un nuevo análisis */}
-    <button
-      onClick={handleReset}
-      className="mt-6 w-full bg-green-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center"
-    >
-      Nuevo análisis
-    </button>
-  </div>
-)}
 
           </div>
         </div>

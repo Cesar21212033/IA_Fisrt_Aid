@@ -114,9 +114,20 @@ from conexion import guardar_diagnostico
 # Endpoint predict + train
 # ==========================
 @app.post("/predict_and_train/")
-async def predict_and_train(file: UploadFile = File(...), clase: str = Form(...)):
+async def predict_and_train(
+    file: UploadFile = File(...), 
+    clase: str = Form(...),
+    numero_control: str = Form(...),
+    nombre_completo: str = Form(...)
+):
     if clase not in clases:
         raise HTTPException(status_code=400, detail=f"La clase debe ser una de {clases}")
+
+    # Validar que los campos obligatorios estén presentes
+    if not numero_control or not numero_control.strip():
+        raise HTTPException(status_code=400, detail="El número de control es obligatorio")
+    if not nombre_completo or not nombre_completo.strip():
+        raise HTTPException(status_code=400, detail="El nombre completo es obligatorio")
 
     # predicción
     contents = await file.read()
@@ -131,11 +142,20 @@ async def predict_and_train(file: UploadFile = File(...), clase: str = Form(...)
     instrucciones_ai = recomendacion_gemini(clase_detectada)
 
     #  Guardar en bd
-    guardar_diagnostico(
+    resultado_bd = guardar_diagnostico(
         tipo="imagen",
         clase=clase_detectada,
-        instrucciones=instrucciones_ai
+        instrucciones=instrucciones_ai,
+        numero_control=numero_control.strip(),
+        nombre_completo=nombre_completo.strip(),
+        probabilidad=probabilidad
     )
+    
+    # Log del resultado de guardado
+    if "error" in resultado_bd:
+        print(f"ERROR al guardar en BD: {resultado_bd['error']}")
+    else:
+        print(f"Guardado exitoso en BD: {resultado_bd.get('mensaje', 'OK')}")
 
     # entrenamiento incremental
     train_on_new_image(contents, clase)
@@ -155,6 +175,8 @@ from pydantic import BaseModel
 # ==========================
 class SymptomRequest(BaseModel):
     symptoms: str
+    numero_control: str
+    nombre_completo: str
 
 
 # ==========================
@@ -163,6 +185,12 @@ class SymptomRequest(BaseModel):
 @app.post("/analyze-symptoms/")
 async def analyze_symptoms(request: SymptomRequest):
     texto = request.symptoms.strip().lower()
+
+    # Validar que los campos obligatorios estén presentes
+    if not request.numero_control or not request.numero_control.strip():
+        raise HTTPException(status_code=400, detail="El número de control es obligatorio")
+    if not request.nombre_completo or not request.nombre_completo.strip():
+        raise HTTPException(status_code=400, detail="El nombre completo es obligatorio")
 
     # Validar que mencione extremidad y tipo de lesión
     extremidad_valida = any(x in texto for x in ["brazo", "pierna"])
@@ -201,11 +229,21 @@ async def analyze_symptoms(request: SymptomRequest):
         # =========================
         # Guardar en base de datos
         # =========================
-        guardar_diagnostico(
+        # Para análisis de texto, no hay probabilidad, se guarda como NULL
+        resultado_bd = guardar_diagnostico(
             tipo="texto",
             clase=clase_detectada,
-            instrucciones=respuesta.text
+            instrucciones=respuesta.text,
+            numero_control=request.numero_control.strip(),
+            nombre_completo=request.nombre_completo.strip(),
+            probabilidad=None  # No hay probabilidad en análisis de texto
         )
+        
+        # Log del resultado de guardado
+        if "error" in resultado_bd:
+            print(f"ERROR al guardar en BD: {resultado_bd['error']}")
+        else:
+            print(f"Guardado exitoso en BD: {resultado_bd.get('mensaje', 'OK')}")
 
         return {"respuesta": respuesta.text}
 

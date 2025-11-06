@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Home from './pages/Home'
 import ImageAnalysis from './pages/ImageAnalysis'
 import TextAnalysis from './pages/TextAnalysis'
+import DiagnosisResults from './pages/DiagnosisResult'
 import DiagnosticHistory from './pages/DiagnosticHistory'
 import FirstAidGuide from './pages/FirstAidGuide'
 
@@ -31,6 +32,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/image-analysis" element={<ImageAnalysis />} />
         <Route path="/text-analysis" element={<TextAnalysis />} />
+        <Route path="/diagnosis-results" element={<DiagnosisResults />} />
         <Route path="/diagnostic-history" element={<DiagnosticHistory />} />
         <Route path="/first-aid-guide" element={<FirstAidGuide />} />
       </Routes>

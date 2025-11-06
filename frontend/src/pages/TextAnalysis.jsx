@@ -7,8 +7,9 @@ export default function TextWoundAnalysis() {
   const navigate = useNavigate();
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
-  const [recommendation, setRecommendation] = useState('');
   const [isValid, setIsValid] = useState(false);
+  const [numeroControl, setNumeroControl] = useState('');
+  const [nombreCompleto, setNombreCompleto] = useState('');
 
   // Validación en tiempo real del texto ingresado
   useEffect(() => {
@@ -26,20 +27,52 @@ export default function TextWoundAnalysis() {
       return;
     }
 
+    // Validar campos obligatorios
+    if (!numeroControl.trim()) {
+      alert("El número de control es obligatorio.");
+      return;
+    }
+    if (!nombreCompleto.trim()) {
+      alert("El nombre completo es obligatorio.");
+      return;
+    }
+
     setLoading(true);
-    setRecommendation('');
 
     try {
       const response = await fetch("http://127.0.0.1:8001/analyze-symptoms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symptoms: description }),
+        body: JSON.stringify({ 
+          symptoms: description,
+          numero_control: numeroControl.trim(),
+          nombre_completo: nombreCompleto.trim()
+        }),
       });
 
       const data = await response.json();
 
       if (data.respuesta) {
-        setRecommendation(data.respuesta);
+        // Determinar la clase basada en el texto
+        const texto = description.toLowerCase();
+        let clase = "desconocida";
+        if (texto.includes("quemadura")) {
+          clase = "quemaduras";
+        } else if (texto.includes("cortada") || texto.includes("corte")) {
+          clase = "cortadas";
+        }
+
+        // Navegar a DiagnosisResults con los datos
+        navigate('/diagnosis-results', {
+          state: {
+            clase: clase,
+            probabilidad: 1.0, // No hay probabilidad en análisis de texto
+            respuesta: data.respuesta,
+            instrucciones: data.respuesta, // La respuesta es la recomendación
+            textoIngresado: description, // El texto que ingresó el usuario
+            tipo: 'texto'
+          }
+        });
       } else if (data.error) {
         console.error("Error del servidor:", data.error);
         alert("Ocurrió un error al generar la recomendación.");
@@ -54,7 +87,6 @@ export default function TextWoundAnalysis() {
 
   const handleReset = () => {
     setDescription('');
-    setRecommendation('');
     setIsValid(false);
   };
 
@@ -93,6 +125,38 @@ export default function TextWoundAnalysis() {
               Describe la herida
             </h3>
 
+            {/* Campos obligatorios */}
+            <div className="mb-6 space-y-4">
+              <div>
+                <label htmlFor="numero-control-text" className="block text-sm font-medium text-gray-700 mb-2">
+                  Número de Control <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="numero-control-text"
+                  type="text"
+                  value={numeroControl}
+                  onChange={(e) => setNumeroControl(e.target.value)}
+                  placeholder="Ingrese el número de control"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="nombre-completo-text" className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre Completo <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="nombre-completo-text"
+                  type="text"
+                  value={nombreCompleto}
+                  onChange={(e) => setNombreCompleto(e.target.value)}
+                  placeholder="Ingrese el nombre completo del estudiante"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  required
+                />
+              </div>
+            </div>
+
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -108,7 +172,7 @@ export default function TextWoundAnalysis() {
 
             <button
               onClick={handleAnalyze}
-              disabled={!description.trim() || !isValid || loading}
+              disabled={!description.trim() || !isValid || loading || !numeroControl.trim() || !nombreCompleto.trim()}
               className="mt-4 w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
               {loading ? (
@@ -124,22 +188,6 @@ export default function TextWoundAnalysis() {
               )}
             </button>
 
-            {recommendation && (
-              <div className="mt-6 bg-blue-50 border border-blue-200 rounded-2xl p-4 text-left">
-                <h3 className="text-xl font-semibold text-indigo-700 mb-2">
-                  Recomendación de primeros auxilios
-                </h3>
-                <p className="whitespace-pre-line text-gray-800">{recommendation}</p>
-
-                <button
-                  onClick={handleReset}
-                  className="mt-4 w-full bg-green-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center"
-                >
-                  <FaRedo className="w-4 h-4 mr-2" />
-                  Nueva pregunta
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </main>
