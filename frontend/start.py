@@ -7,9 +7,6 @@ sys.stdout.reconfigure(encoding='utf-8')
 import signal
 import time
 import requests
-from fastapi import FastAPI
-
-app = FastAPI()
 
 # --- Detectar la raíz del proyecto ---
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))  # frontend/
@@ -18,16 +15,12 @@ MODEL_FILENAME = "modelo_quemaduras_cortadas.keras"
 MODEL_PATH = os.path.join(PROJECT_ROOT, "modelo_quemaduras_cortadas.keras")
 
 
-# --- Asegurarse de que siempre exista el modelo en PROJECT_ROOT ---
-if not os.path.exists(MODEL_PATH):
-    print(f"No se encontró el modelo en {MODEL_PATH}, creando uno nuevo...")
-    # Aquí asumimos que tienes una función para crear un modelo nuevo
-    from model import ModelManager
-    modelo_manager = ModelManager.create_new_model()  # crea el modelo inicial
-    modelo_manager.model.save(MODEL_PATH)
-    print(f"Modelo creado y guardado en {MODEL_PATH}")
+# --- Verificar que el modelo exista en PROJECT_ROOT ---
+if os.path.exists(MODEL_PATH):
+    print(f"✅ Modelo encontrado en {MODEL_PATH}")
 else:
-    print(f"Usando modelo existente en {MODEL_PATH}")
+    print(f"⚠️  No se encontró el modelo en {MODEL_PATH}")
+    print(f"   Por favor, entrena el modelo primero usando model.py o colab_train.ipynb")
 
 # --- Función para ejecutar un comando y mostrar su salida en tiempo real ---
 def run_command(cmd, name, cwd=None):
