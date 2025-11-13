@@ -2,7 +2,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 
 # Función para cargar y preprocesar imágenes
-def cargar_imagen(ruta, size=(128,128)):
+def cargar_imagen(ruta, size=(224, 224)):  # Actualizado a 224x224 para coincidir con el modelo mejorado
     img = tf.keras.utils.load_img(ruta, target_size=size)
     img_array = tf.keras.utils.img_to_array(img)
     img_array = tf.expand_dims(img_array, 0) / 255.0

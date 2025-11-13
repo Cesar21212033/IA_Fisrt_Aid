@@ -27,7 +27,7 @@ def predecir_lesion(ruta_imagen):
 
     try:
         # Procesar imagen
-        img = load_img(ruta_imagen, target_size=(128,128))
+        img = load_img(ruta_imagen, target_size=(224, 224))  # Actualizado a 224x224 para coincidir con el modelo mejorado
         img_array = img_to_array(img) / 255.0
         img_array = np.expand_dims(img_array, axis=0)
 

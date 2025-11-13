@@ -77,7 +77,7 @@ def procesar_imagen_memoria(contents: bytes):
     """Convierto la imagen a array listo para el modelo"""
     try:
         with Image.open(BytesIO(contents)) as img:
-            img = img.convert("RGB").resize((128, 128))
+            img = img.convert("RGB").resize((224, 224))  # Actualizado a 224x224 para coincidir con el modelo mejorado
             img_array = np.expand_dims(img_to_array(img) / 255.0, axis=0)
         return img_array
     except Exception as e:

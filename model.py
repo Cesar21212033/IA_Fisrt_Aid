@@ -1,11 +1,18 @@
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, RandomFlip, RandomRotation
+from tensorflow.keras.layers import (
+    Conv2D, MaxPooling2D, Flatten, Dense, Dropout, 
+    RandomFlip, RandomRotation, BatchNormalization,
+    GlobalAveragePooling2D, Activation
+)
+from tensorflow.keras.regularizers import l2
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.optimizers import Adam
 import matplotlib.pyplot as plt
 from PIL import Image
 import os
 from tensorflow.keras.models import Sequential, load_model
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 import time
 
 
@@ -41,14 +48,17 @@ limpiar_y_convertir_carpeta("data/val")
 # Data Augmentation y Generadores
 # ===========================
 # Aquí preparo los generadores de datos para entrenamiento y validación.
-# Al generador de entrenamiento le aplico aumentos como rotaciones, desplazamientos y flips horizontales.
+# Al generador de entrenamiento le aplico aumentos mejorados para mayor variabilidad.
 train_datagen = ImageDataGenerator(
     rescale=1./255,
-    rotation_range=20,
-    width_shift_range=0.1,
-    height_shift_range=0.1,
-    zoom_range=0.1,
+    rotation_range=30,              # Aumentado de 20 a 30 grados
+    width_shift_range=0.2,          # Aumentado de 0.1 a 0.2
+    height_shift_range=0.2,         # Aumentado de 0.1 a 0.2
+    zoom_range=0.2,                 # Aumentado de 0.1 a 0.2
     horizontal_flip=True,
+    vertical_flip=True,             # Nuevo: flip vertical
+    shear_range=0.2,                # Nuevo: transformación de cizalla
+    brightness_range=[0.8, 1.2],    # Nuevo: variación de brillo
     fill_mode='nearest'
 )
 
@@ -63,9 +73,12 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TRAIN_DIR = os.path.join(BASE_DIR, "data/train")
 VAL_DIR = os.path.join(BASE_DIR, "data/val")
 
+# Aumentar resolución para mejor captura de detalles (opcional: usar 224x224 si tienes GPU)
+IMG_SIZE = 224  # Aumentado de 128 a 224 para mejor precisión
+
 train_generator = train_datagen.flow_from_directory(
     TRAIN_DIR,
-    target_size=(128,128),
+    target_size=(IMG_SIZE, IMG_SIZE),
     batch_size=32,
     class_mode="sparse",  # las etiquetas se manejan como enteros
     shuffle=True
@@ -73,62 +86,118 @@ train_generator = train_datagen.flow_from_directory(
 
 val_generator = val_datagen.flow_from_directory(
     VAL_DIR,
-    target_size=(128,128),
+    target_size=(IMG_SIZE, IMG_SIZE),
     batch_size=32,
     class_mode="sparse"
 )
 
 # ===========================
-# Definir modelo CNN
+# Definir modelo CNN mejorado
 # ===========================
-# Defino una red neuronal convolucional secuencial.
-# Uso capas de aumento de datos, convolución, pooling, y una densa final para clasificar entre 2 clases.
+# Arquitectura más profunda y robusta con Batch Normalization y regularización L2
+# para mejorar la precisión y reducir el overfitting.
 model = Sequential([
+    # Data augmentation en la capa del modelo
     RandomFlip("horizontal"),
     RandomRotation(0.1),
-
-    Conv2D(32, (3,3), activation='relu', input_shape=(128,128,3)),
-    MaxPooling2D(2,2),
-
-    Conv2D(64, (3,3), activation='relu'),
-    MaxPooling2D(2,2),
-
-    Flatten(),
-    Dense(256, activation='relu'),
+    
+    # Bloque 1: Primera capa convolucional
+    Conv2D(32, (3, 3), padding='same', kernel_regularizer=l2(0.001), input_shape=(IMG_SIZE, IMG_SIZE, 3)),
+    BatchNormalization(),
+    Activation('relu'),
+    Conv2D(32, (3, 3), padding='same', kernel_regularizer=l2(0.001)),
+    BatchNormalization(),
+    Activation('relu'),
+    MaxPooling2D(2, 2),
+    Dropout(0.25),
+    
+    # Bloque 2: Segunda capa convolucional
+    Conv2D(64, (3, 3), padding='same', kernel_regularizer=l2(0.001)),
+    BatchNormalization(),
+    Activation('relu'),
+    Conv2D(64, (3, 3), padding='same', kernel_regularizer=l2(0.001)),
+    BatchNormalization(),
+    Activation('relu'),
+    MaxPooling2D(2, 2),
+    Dropout(0.25),
+    
+    # Bloque 3: Tercera capa convolucional (nuevo)
+    Conv2D(128, (3, 3), padding='same', kernel_regularizer=l2(0.001)),
+    BatchNormalization(),
+    Activation('relu'),
+    Conv2D(128, (3, 3), padding='same', kernel_regularizer=l2(0.001)),
+    BatchNormalization(),
+    Activation('relu'),
+    MaxPooling2D(2, 2),
+    Dropout(0.25),
+    
+    # Bloque 4: Cuarta capa convolucional (nuevo)
+    Conv2D(256, (3, 3), padding='same', kernel_regularizer=l2(0.001)),
+    BatchNormalization(),
+    Activation('relu'),
+    Conv2D(256, (3, 3), padding='same', kernel_regularizer=l2(0.001)),
+    BatchNormalization(),
+    Activation('relu'),
+    MaxPooling2D(2, 2),
+    Dropout(0.25),
+    
+    # Global Average Pooling en lugar de Flatten para reducir overfitting
+    GlobalAveragePooling2D(),
+    
+    # Capas densas mejoradas
+    Dense(512, kernel_regularizer=l2(0.001)),
+    BatchNormalization(),
+    Activation('relu'),
     Dropout(0.5),
-
+    
+    Dense(256, kernel_regularizer=l2(0.001)),
+    BatchNormalization(),
+    Activation('relu'),
+    Dropout(0.5),
+    
+    # Capa de salida
     Dense(2, activation='softmax')  # 2 clases: quemaduras y cortadas
 ])
 
 # ===========================
 # Compilar modelo
 # ===========================
-# Compilo el modelo usando Adam como optimizador y entropía 
+# Compilo el modelo usando Adam con learning rate ajustado y entropía 
 # cruzada como función de pérdida.
 # También mido la precisión para ver el rendimiento.
 model.compile(
-    optimizer='adam',
+    optimizer=Adam(learning_rate=0.001),  # Learning rate inicial más bajo para mejor convergencia
     loss='sparse_categorical_crossentropy',
     metrics=['accuracy']
 )
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 
-# Uso EarlyStopping para detener el entrenamiento si no mejora la 
-# validación después de cierto número de épocas.
+# ===========================
+# Callbacks mejorados
+# ===========================
+# EarlyStopping: Detiene el entrenamiento si no mejora la validación
 early_stop = EarlyStopping(
-    monitor='val_loss',  # también puedo usar 'val_accuracy'
-    patience=10,
-    restore_best_weights=True
+    monitor='val_loss',
+    patience=15,  # Aumentado de 10 a 15 para dar más oportunidades
+    restore_best_weights=True,
+    verbose=1
 )
 
-# Uso ModelCheckpoint para guardar automáticamente el mejoR
-#  modelo basado en la precisión de validación.
+# ModelCheckpoint: Guarda automáticamente el mejor modelo
 checkpoint = ModelCheckpoint(
-    "modelo_quemaduras_cortadas.keras",  # mismo nombre que mi archivo actual
-    monitor="val_accuracy",            # guarda cuando mejora la precisión en validación
-    save_best_only=True,               # solo guarda el mejor modelo
-    mode="max",                        # porque quiero maximizar la precisión
-    verbose=1                          # muestra mensaje cuando se guarda
+    "modelo_quemaduras_cortadas.keras",
+    monitor="val_accuracy",
+    save_best_only=True,
+    mode="max",
+    verbose=1
+)
+
+# ReduceLROnPlateau: Reduce el learning rate cuando el modelo deja de mejorar
+reduce_lr = ReduceLROnPlateau(
+    monitor='val_loss',
+    factor=0.5,      # Reduce el LR a la mitad
+    patience=5,      # Espera 5 épocas sin mejora
+    min_lr=0.00001,  # LR mínimo
+    verbose=1
 )
 
 
@@ -140,7 +209,7 @@ history = model.fit(
     train_generator,
     validation_data=val_generator,
     epochs=200,
-    callbacks=[early_stop, checkpoint]
+    callbacks=[early_stop, checkpoint, reduce_lr]  # Agregado reduce_lr
 )
 # ===========================
 # Guardar modelo
