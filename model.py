@@ -1,8 +1,8 @@
 import tensorflow as tf
-from tensorflow.keras.models import Sequential
+from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import (
     Conv2D, MaxPooling2D, Flatten, Dense, Dropout, 
-    RandomFlip, RandomRotation, BatchNormalization,
+    BatchNormalization,
     GlobalAveragePooling2D, Activation
 )
 from tensorflow.keras.regularizers import l2
@@ -11,7 +11,6 @@ from tensorflow.keras.optimizers import Adam
 import matplotlib.pyplot as plt
 from PIL import Image
 import os
-from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 import time
 
@@ -23,20 +22,34 @@ import time
 # Verifica que los archivos sean válidos, los convierte al formato RGB y los guarda como .jpg.
 # Si encuentra archivos corruptos o con formato no válido, los elimina.
 def limpiar_y_convertir_carpeta(carpeta):
+    # Extensiones de imagen válidas
+    extensiones_validas = {'.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tiff', '.tif'}
+    
     for root, dirs, files in os.walk(carpeta):
         for archivo in files:
             ruta_archivo = os.path.join(root, archivo)
+            extension = os.path.splitext(archivo)[1].lower()
+            
+            # Solo procesar archivos con extensiones de imagen válidas
+            if extension not in extensiones_validas:
+                continue
+                
             try:
                 img = Image.open(ruta_archivo)
                 img.verify()
                 img = Image.open(ruta_archivo).convert('RGB')
                 nuevo_nombre = os.path.splitext(ruta_archivo)[0] + ".jpg"
-                img.save(nuevo_nombre, "JPEG")
-                if ruta_archivo != nuevo_nombre:
+                
+                # Solo convertir y eliminar si la extensión es diferente a .jpg
+                if extension != '.jpg':
+                    img.save(nuevo_nombre, "JPEG")
                     os.remove(ruta_archivo)
             except Exception:
                 print(f" Archivo inválido eliminado: {ruta_archivo}")
-                os.remove(ruta_archivo)
+                try:
+                    os.remove(ruta_archivo)
+                except Exception:
+                    pass
 
 # ===========================
 # Código de entrenamiento - Solo se ejecuta si se ejecuta directamente el archivo
@@ -62,7 +75,7 @@ if __name__ == "__main__":
         height_shift_range=0.2,         # Aumentado de 0.1 a 0.2
         zoom_range=0.2,                 # Aumentado de 0.1 a 0.2
         horizontal_flip=True,
-        vertical_flip=True,             # Nuevo: flip vertical
+        # vertical_flip eliminado: incorrecto para imágenes médicas
         shear_range=0.2,                # Nuevo: transformación de cizalla
         brightness_range=[0.8, 1.2],    # Nuevo: variación de brillo
         fill_mode='nearest'
@@ -85,7 +98,7 @@ if __name__ == "__main__":
     train_generator = train_datagen.flow_from_directory(
         TRAIN_DIR,
         target_size=(IMG_SIZE, IMG_SIZE),
-        batch_size=32,
+        batch_size=16,  # Reducido de 32 a 16 para evitar OOM en CPU
         class_mode="sparse",  # las etiquetas se manejan como enteros
         shuffle=True
     )
@@ -93,7 +106,7 @@ if __name__ == "__main__":
     val_generator = val_datagen.flow_from_directory(
         VAL_DIR,
         target_size=(IMG_SIZE, IMG_SIZE),
-        batch_size=32,
+        batch_size=16,  # Reducido de 32 a 16 para evitar OOM en CPU
         class_mode="sparse"
     )
 
@@ -102,55 +115,52 @@ if __name__ == "__main__":
     # ===========================
     # Arquitectura más profunda y robusta con Batch Normalization y regularización L2
     # para mejorar la precisión y reducir el overfitting.
+    # Nota: Data augmentation solo en ImageDataGenerator, no en el modelo
     model = Sequential([
-        # Data augmentation en la capa del modelo
-        RandomFlip("horizontal"),
-        RandomRotation(0.1),
-        
         # Bloque 1: Primera capa convolucional
-        Conv2D(32, (3, 3), padding='same', kernel_regularizer=l2(0.001), input_shape=(IMG_SIZE, IMG_SIZE, 3)),
+        Conv2D(32, (3, 3), padding='same', input_shape=(IMG_SIZE, IMG_SIZE, 3)),
         BatchNormalization(),
         Activation('relu'),
-        Conv2D(32, (3, 3), padding='same', kernel_regularizer=l2(0.001)),
+        Conv2D(32, (3, 3), padding='same'),
         BatchNormalization(),
         Activation('relu'),
         MaxPooling2D(2, 2),
-        Dropout(0.25),
+        Dropout(0.15),  # Reducido de 0.25 a 0.15
         
         # Bloque 2: Segunda capa convolucional
-        Conv2D(64, (3, 3), padding='same', kernel_regularizer=l2(0.001)),
+        Conv2D(64, (3, 3), padding='same'),
         BatchNormalization(),
         Activation('relu'),
-        Conv2D(64, (3, 3), padding='same', kernel_regularizer=l2(0.001)),
+        Conv2D(64, (3, 3), padding='same'),
         BatchNormalization(),
         Activation('relu'),
         MaxPooling2D(2, 2),
-        Dropout(0.25),
+        Dropout(0.15),  # Reducido de 0.25 a 0.15
         
-        # Bloque 3: Tercera capa convolucional (nuevo)
-        Conv2D(128, (3, 3), padding='same', kernel_regularizer=l2(0.001)),
+        # Bloque 3: Tercera capa convolucional
+        Conv2D(128, (3, 3), padding='same'),
         BatchNormalization(),
         Activation('relu'),
-        Conv2D(128, (3, 3), padding='same', kernel_regularizer=l2(0.001)),
+        Conv2D(128, (3, 3), padding='same'),
         BatchNormalization(),
         Activation('relu'),
         MaxPooling2D(2, 2),
-        Dropout(0.25),
+        Dropout(0.15),  # Reducido de 0.25 a 0.15
         
-        # Bloque 4: Cuarta capa convolucional (nuevo)
-        Conv2D(256, (3, 3), padding='same', kernel_regularizer=l2(0.001)),
+        # Bloque 4: Cuarta capa convolucional
+        Conv2D(256, (3, 3), padding='same'),
         BatchNormalization(),
         Activation('relu'),
-        Conv2D(256, (3, 3), padding='same', kernel_regularizer=l2(0.001)),
+        Conv2D(256, (3, 3), padding='same'),
         BatchNormalization(),
         Activation('relu'),
         MaxPooling2D(2, 2),
-        Dropout(0.25),
+        Dropout(0.15),  # Reducido de 0.25 a 0.15
         
         # Global Average Pooling en lugar de Flatten para reducir overfitting
         GlobalAveragePooling2D(),
         
-        # Capas densas mejoradas
+        # Capas densas con regularización L2 (solo aquí)
         Dense(512, kernel_regularizer=l2(0.001)),
         BatchNormalization(),
         Activation('relu'),
@@ -211,17 +221,13 @@ if __name__ == "__main__":
     # Entrenar modelo
     # ===========================
     # Entreno el modelo con los datos de entrenamiento y validación, aplicando las callbacks configuradas.
+    # Nota: El modelo ya se guarda automáticamente con ModelCheckpoint, no es necesario guardarlo de nuevo
     history = model.fit(
         train_generator,
         validation_data=val_generator,
-        epochs=200,
+        epochs=30,
         callbacks=[early_stop, checkpoint, reduce_lr]  # Agregado reduce_lr
     )
-    # ===========================
-    # Guardar modelo
-    # ===========================
-    # Guardo el modelo final entrenado en un archivo .keras
-    model.save("modelo_quemaduras_cortadas.keras")
     
     # ===========================
     # Graficar entrenamiento
@@ -242,6 +248,9 @@ if __name__ == "__main__":
 # Esta clase me permite recargar el modelo si el archivo ha sido modificado
 # y usarlo para hacer predicciones actualizadas.
 class ModelManager:
+    # Lista de clases reconocidas por el modelo
+    clases = ["quemaduras", "cortadas"]
+    
     def __init__(self, path_model):
         self.path_model = path_model
         self.last_modified = 0
@@ -260,11 +269,10 @@ class ModelManager:
             print(f" Error al cargar el modelo: {e}")
     
     def predict(self, img_array):
-        """Asegurarse de usar el modelo actualizado"""
+        """Asegurarse de usar el modelo actualizado y normalizar imágenes"""
         self.reload_model()
+        # Normalizar imágenes si no están normalizadas (rango 0-255 -> 0-1)
+        if img_array.max() > 1.0:
+            img_array = img_array / 255.0
         pred = self.model.predict(img_array, verbose=0)
         return pred
-    
-
-    # Lista de clases reconocidas por el modelo
-clases = ["quemaduras", "cortadas"]
