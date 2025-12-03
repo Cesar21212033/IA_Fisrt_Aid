@@ -1,1 +1,21 @@
 node_modules
+
+# Entornos virtuales de Python
+venv/
+venv312/
+env/
+ENV/
+.venv/
+
+# Archivos de Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Archivos grandes y temporales
+*.dll
+*.pyd
+*.dylib
+*.so
