@@ -1,0 +1,97 @@
+==========================================
+SOLUCIÓN PARA INSTALAR TENSORFLOW CON PYTHON 3.14
+==========================================
+
+PROBLEMA:
+Python 3.14 es muy nuevo y TensorFlow aún no tiene soporte oficial.
+TensorFlow actualmente soporta Python 3.9 hasta Python 3.12.
+
+==========================================
+SOLUCIÓN RECOMENDADA: USAR PYTHON 3.12
+==========================================
+
+OPCIÓN 1: Instalar Python 3.12 y crear nuevo entorno virtual
+
+1. Descargar Python 3.12 desde: https://www.python.org/downloads/
+   - Buscar "Python 3.12.x" en la sección de descargas
+   - Descargar e instalar (marcar "Add Python to PATH" durante la instalación)
+
+2. Crear un nuevo entorno virtual con Python 3.12:
+   En PowerShell, ejecuta:
+   
+   py -3.12 -m venv venv312
+   
+   O si tienes Python 3.12 como versión predeterminada:
+   
+   python -m venv venv312
+
+3. Activar el nuevo entorno virtual:
+   
+   .\venv312\Scripts\Activate
+
+4. Instalar todas las librerías:
+   
+   pip install numpy matplotlib scikit-learn tensorflow seaborn
+
+5. Verificar la instalación:
+   
+   python -c "import tensorflow as tf; print('TensorFlow version:', tf.__version__)"
+
+==========================================
+OPCIÓN 2: Usar el entorno virtual existente con Python 3.12
+==========================================
+
+Si ya tienes Python 3.12 instalado:
+
+1. Desactivar el entorno virtual actual (si está activo):
+   
+   deactivate
+
+2. Crear nuevo entorno virtual con Python 3.12:
+   
+   py -3.12 -m venv venv_tf
+
+3. Activar el nuevo entorno:
+   
+   .\venv_tf\Scripts\Activate
+
+4. Instalar las librerías:
+   
+   pip install numpy matplotlib scikit-learn tensorflow seaborn
+
+==========================================
+OPCIÓN 3: Verificar qué versiones de Python tienes instaladas
+==========================================
+
+Ejecuta en PowerShell:
+
+py --list
+
+Esto mostrará todas las versiones de Python instaladas en tu sistema.
+Si ves Python 3.12, puedes usarlo directamente:
+
+py -3.12 -m venv venv312
+.\venv312\Scripts\Activate
+pip install numpy matplotlib scikit-learn tensorflow seaborn
+
+==========================================
+NOTAS IMPORTANTES
+==========================================
+
+- El entorno virtual actual (venv) usa Python 3.14, que NO es compatible con TensorFlow
+- Necesitas crear un nuevo entorno virtual con Python 3.12 para usar TensorFlow
+- Una vez que tengas TensorFlow instalado, podrás ejecutar matriz_confusion.py sin problemas
+- Las otras librerías (numpy, matplotlib, scikit-learn, seaborn) ya están instaladas y funcionan con Python 3.14
+
+==========================================
+VERIFICAR INSTALACIÓN DE TENSORFLOW
+==========================================
+
+Después de instalar TensorFlow, verifica que funciona:
+
+python -c "import tensorflow as tf; print('TensorFlow instalado correctamente'); print('Versión:', tf.__version__)"
+
+Si ves un mensaje de éxito, TensorFlow está listo para usar.
+
+
+

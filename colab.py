@@ -19,6 +19,9 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import os
 import zipfile
+import numpy as np
+from collections import Counter
+import glob
 
 # ===========================
 # Descomprimir archivo zip si existe
@@ -32,9 +35,9 @@ if not os.path.exists(os.path.join(extract_path, 'data')):
         print(f"Descomprimiendo {zip_path} en {extract_path}...")
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(extract_path)
-        print("✅ Descompresión completada!")
+        print(" Descompresión completada!")
     else:
-        print(f"⚠️ No se encontró el archivo {zip_path}. Continuando sin descomprimir...")
+        print(f" No se encontró el archivo {zip_path}. Continuando sin descomprimir...")
 else:
     print(f"El directorio '{os.path.join(extract_path, 'data')}' ya existe. Saltando la descompresión.")
 
@@ -46,7 +49,7 @@ if os.path.exists(expected_train_dir) and os.path.exists(expected_val_dir):
     print(f"Los directorios de entrenamiento ({expected_train_dir}) y validación ({expected_val_dir}) fueron encontrados.")
     print("Ahora puedes continuar con el entrenamiento.\n")
 else:
-    print("⚠️ Advertencia: Los directorios 'train' y/o 'val' no fueron encontrados después de la descompresión. Por favor, verifica la estructura del archivo zip.\n")
+    print(" Advertencia: Los directorios 'train' y/o 'val' no fueron encontrados después de la descompresión. Por favor, verifica la estructura del archivo zip.\n")
 
 # ===========================
 # Configuración de rutas
@@ -96,7 +99,7 @@ def limpiar_y_convertir_carpeta(carpeta):
                     os.remove(ruta_archivo)
                 archivos_procesados += 1
             except Exception:
-                print(f"⚠️ Archivo inválido eliminado: {ruta_archivo}")
+                print(f" Archivo inválido eliminado: {ruta_archivo}")
                 try:
                     os.remove(ruta_archivo)
                     archivos_eliminados += 1
@@ -135,6 +138,28 @@ else:
     print("\n¡La estructura de carpetas parece correcta! Ahora puedes ejecutar la celda principal de entrenamiento.")
     
     # ===========================
+    # Buscar y eliminar archivos .keras existentes
+    # ===========================
+    print("\n🔍 Buscando archivos .keras existentes...")
+    keras_files = glob.glob('*.keras')
+    
+    if keras_files:
+        print(f" Se encontraron {len(keras_files)} archivo(s) .keras existente(s):")
+        for keras_file in keras_files:
+            print(f"   - {keras_file}")
+        print(" Estos archivos serán sobreescritos con el nuevo entrenamiento.\n")
+        # Opcional: eliminar archivos antiguos antes del entrenamiento
+        # Si prefieres mantenerlos hasta que se guarde el nuevo modelo, puedes comentar estas líneas
+        for keras_file in keras_files:
+            try:
+                os.remove(keras_file)
+                print(f"   ✓ Archivo eliminado: {keras_file}")
+            except Exception as e:
+                print(f"   ⚠ No se pudo eliminar {keras_file}: {e}")
+    else:
+        print(" No se encontraron archivos .keras existentes. Se creará un nuevo modelo.\n")
+    
+    # ===========================
     # Código de entrenamiento
     # ===========================
     print("\n🚀 Iniciando entrenamiento...\n")
@@ -144,11 +169,11 @@ else:
     # ===========================
     print("🧹 Limpiando imágenes de entrenamiento...")
     proc_train, elim_train = limpiar_y_convertir_carpeta(TRAIN_DIR)
-    print(f"✅ Procesadas: {proc_train}, Eliminadas: {elim_train}")
+    print(f" Procesadas: {proc_train}, Eliminadas: {elim_train}")
     
     print("🧹 Limpiando imágenes de validación...")
     proc_val, elim_val = limpiar_y_convertir_carpeta(VAL_DIR)
-    print(f"✅ Procesadas: {proc_val}, Eliminadas: {elim_val}\n")
+    print(f" Procesadas: {proc_val}, Eliminadas: {elim_val}\n")
     
     # ===========================
     # Data Augmentation y Generadores
@@ -186,9 +211,95 @@ else:
         class_mode="sparse"
     )
     
-    print(f"✅ Clases encontradas: {train_generator.class_indices}")
-    print(f"✅ Imágenes de entrenamiento: {train_generator.samples}")
-    print(f"✅ Imágenes de validación: {val_generator.samples}\n")
+    print(f" Clases encontradas: {train_generator.class_indices}")
+    print(f" Imágenes de entrenamiento: {train_generator.samples}")
+    print(f" Imágenes de validación: {val_generator.samples}\n")
+    
+    # ===========================
+    # Calcular class_weight para priorizar clase 'cortadas'
+    # ===========================
+    # Obtener la distribución de clases del generador de entrenamiento
+    class_counts = Counter(train_generator.classes)
+    total_samples = sum(class_counts.values())
+    
+    # Debug: mostrar qué clases se detectaron
+    print(f" DEBUG - Nombres de clases detectadas: {list(train_generator.class_indices.keys())}")
+    print(f" DEBUG - Distribución de clases: {dict(class_counts)}\n")
+    
+    # Contar imágenes reales en carpetas de cortes vs quemaduras
+    print(f" Analizando estructura de carpetas para calcular pesos reales...")
+    cortes_total = 0
+    quemaduras_total = 0
+    
+    # Mapeo: para cada clase detectada (Brazo/Pierna), contar cortes y quemaduras
+    clase_cortes_count = {}  # {class_idx: cantidad_de_cortes}
+    clase_quemaduras_count = {}  # {class_idx: cantidad_de_quemaduras}
+    
+    for class_name, class_idx in train_generator.class_indices.items():
+        clase_cortes_count[class_idx] = 0
+        clase_quemaduras_count[class_idx] = 0
+        
+        # Buscar todas las subcarpetas de esta clase
+        clase_path = os.path.join(TRAIN_DIR, class_name)
+        if os.path.exists(clase_path):
+            for root, dirs, files in os.walk(clase_path):
+                rel_path = os.path.relpath(root, clase_path)
+                # Buscar carpetas de cortes o quemaduras
+                if 'corte' in rel_path.lower() or 'corte' in root.lower():
+                    image_files = [f for f in files if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+                    clase_cortes_count[class_idx] += len(image_files)
+                    cortes_total += len(image_files)
+                elif 'quemadura' in rel_path.lower() or 'quemadura' in root.lower():
+                    image_files = [f for f in files if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+                    clase_quemaduras_count[class_idx] += len(image_files)
+                    quemaduras_total += len(image_files)
+    
+    print(f" DEBUG - Total imágenes: cortes={cortes_total}, quemaduras={quemaduras_total}")
+    print(f" DEBUG - Por clase detectada:")
+    for class_name, class_idx in train_generator.class_indices.items():
+        print(f"   {class_name} (índice {class_idx}): cortes={clase_cortes_count[class_idx]}, quemaduras={clase_quemaduras_count[class_idx]}")
+    
+    # Calcular pesos basados en la proporción real de cortes vs quemaduras
+    # Si cortes tiene menos imágenes, necesita más peso
+    num_classes = len(train_generator.class_indices)
+    class_weight = {}
+    
+    # Calcular pesos iniciales basados en distribución de clases detectadas
+    for class_idx, count in class_counts.items():
+        weight = total_samples / (num_classes * count)
+        class_weight[class_idx] = weight
+    
+    # Ajustar pesos: dar más peso a las clases que tienen más cortes
+    # Identificar qué clase tiene más cortes en proporción
+    if cortes_total > 0 and quemaduras_total > 0:
+        # Calcular proporción de cortes en cada clase
+        for class_idx in class_weight.keys():
+            total_clase = clase_cortes_count[class_idx] + clase_quemaduras_count[class_idx]
+            if total_clase > 0:
+                prop_cortes = clase_cortes_count[class_idx] / total_clase
+                # Si esta clase tiene más del 50% de cortes, aumentar su peso
+                if prop_cortes > 0.5:
+                    # Aumentar peso proporcionalmente a cuántos cortes tiene
+                    factor_ajuste = 1.0 + (prop_cortes - 0.5) * 2.0  # Máximo 1.5x si es 100% cortes
+                    class_weight[class_idx] *= factor_ajuste
+                    print(f" DEBUG - Ajustando peso de clase {class_idx}: prop_cortes={prop_cortes:.2%}, factor={factor_ajuste:.2f}")
+        
+        # También aplicar peso adicional global si cortes es minoritario
+        if cortes_total < quemaduras_total:
+            # Encontrar la clase con más cortes y darle peso adicional
+            clase_con_mas_cortes = max(clase_cortes_count.items(), key=lambda x: x[1])
+            if clase_con_mas_cortes[1] > 0:
+                class_weight[clase_con_mas_cortes[0]] *= 1.5
+                clase_nombre = [name for name, idx in train_generator.class_indices.items() if idx == clase_con_mas_cortes[0]][0]
+                print(f" Class weights calculados: {class_weight}")
+                print(f"   Priorizando clase '{clase_nombre}' (índice {clase_con_mas_cortes[0]}) con más cortes")
+                print(f"   Peso final: {class_weight[clase_con_mas_cortes[0]]:.3f}\n")
+            else:
+                print(f" Class weights calculados: {class_weight}\n")
+        else:
+            print(f" Class weights calculados: {class_weight}\n")
+    else:
+        print(f" No se pudieron contar imágenes de cortes/quemaduras. Usando pesos balanceados.\n")
     
     # ===========================
     # Definir modelo CNN mejorado
@@ -203,7 +314,7 @@ else:
         BatchNormalization(),
         Activation('relu'),
         MaxPooling2D(2, 2),
-        Dropout(0.15),
+        Dropout(0.10),
         
         # Bloque 2: Segunda capa convolucional
         Conv2D(64, (3, 3), padding='same'),
@@ -213,7 +324,7 @@ else:
         BatchNormalization(),
         Activation('relu'),
         MaxPooling2D(2, 2),
-        Dropout(0.15),
+        Dropout(0.10),
         
         # Bloque 3: Tercera capa convolucional
         Conv2D(128, (3, 3), padding='same'),
@@ -223,7 +334,7 @@ else:
         BatchNormalization(),
         Activation('relu'),
         MaxPooling2D(2, 2),
-        Dropout(0.15),
+        Dropout(0.10),
         
         # Bloque 4: Cuarta capa convolucional
         Conv2D(256, (3, 3), padding='same'),
@@ -233,7 +344,7 @@ else:
         BatchNormalization(),
         Activation('relu'),
         MaxPooling2D(2, 2),
-        Dropout(0.15),
+        Dropout(0.10),
         
         # Global Average Pooling
         GlobalAveragePooling2D(),
@@ -255,12 +366,12 @@ else:
     
     # Compilar modelo
     model.compile(
-        optimizer=Adam(learning_rate=0.001),
+        optimizer=Adam(learning_rate=0.002),
         loss='sparse_categorical_crossentropy',
         metrics=['accuracy']
     )
     
-    print(f"✅ Modelo construido. Parámetros totales: {model.count_params():,}\n")
+    print(f" Modelo construido. Parámetros totales: {model.count_params():,}\n")
     
     # ===========================
     # Callbacks
@@ -276,7 +387,7 @@ else:
     reduce_lr = ReduceLROnPlateau(
         monitor='val_loss',
         factor=0.5,
-        patience=5,
+        patience=3,
         min_lr=0.00001,
         verbose=1
     )
@@ -284,25 +395,26 @@ else:
     # ===========================
     # Entrenar modelo
     # ===========================
-    print("🚀 Iniciando entrenamiento...")
-    print(f"📊 Batch size: {BATCH_SIZE}")
-    print(f"🖼️ Tamaño de imagen: {IMG_SIZE}x{IMG_SIZE}")
-    print(f"📈 Épocas máximas: 30\n")
+    print(" Iniciando entrenamiento...")
+    print(f" Batch size: {BATCH_SIZE}")
+    print(f" Tamaño de imagen: {IMG_SIZE}x{IMG_SIZE}")
+    print(f" Épocas máximas: 30\n")
     
     history = model.fit(
         train_generator,
         validation_data=val_generator,
         epochs=30,
         callbacks=[checkpoint, reduce_lr],
+        class_weight=class_weight,
         verbose=1
     )
     
-    print("\n✅ Entrenamiento completado!\n")
+    print("\n Entrenamiento completado!\n")
     
     # ===========================
     # Graficar entrenamiento
     # ===========================
-    print("📊 Generando gráficas de entrenamiento...")
+    print(" Generando gráficas de entrenamiento...")
     
     # Crear figura con dos subplots
     plt.figure(figsize=(15, 5))
@@ -347,11 +459,21 @@ else:
     final_train_acc = history.history['accuracy'][-1]
     
     print("\n" + "="*50)
-    print("📊 RESULTADOS DEL ENTRENAMIENTO")
+    print(" RESULTADOS DEL ENTRENAMIENTO")
     print("="*50)
     print(f"Mejor precisión de validación: {best_val_acc:.4f} ({best_val_acc*100:.2f}%)")
     print(f"Mejor precisión de entrenamiento: {best_train_acc:.4f} ({best_train_acc*100:.2f}%)")
     print(f"Precisión final de validación: {final_val_acc:.4f} ({final_val_acc*100:.2f}%)")
     print(f"Precisión final de entrenamiento: {final_train_acc:.4f} ({final_train_acc*100:.2f}%)")
     print("="*50)
-    print(f"\n✅ Modelo guardado como: modelo_quemaduras_cortadas.keras")
+    
+    # Verificar que el modelo se guardó correctamente
+    modelo_guardado = 'modelo_quemaduras_cortadas.keras'
+    if os.path.exists(modelo_guardado):
+        file_size = os.path.getsize(modelo_guardado) / (1024 * 1024)  # Tamaño en MB
+        print(f"\n ✓ Modelo guardado exitosamente como: {modelo_guardado}")
+        print(f"   Tamaño del archivo: {file_size:.2f} MB")
+        if keras_files:
+            print(f"   (Archivo .keras anterior fue sobreescrito con el nuevo entrenamiento)")
+    else:
+        print(f"\n ⚠ Advertencia: No se encontró el archivo {modelo_guardado} después del entrenamiento.")
