@@ -1,13 +1,15 @@
-import mysql.connector
-from mysql.connector import Error
 from datetime import datetime
+import psycopg2
+import psycopg2.extras
+from psycopg2 import Error
+
 
 def get_connection():
-    return mysql.connector.connect(
+    return psycopg2.connect(
         host="localhost",
-        user="root",             
-        password="Baby20150531",  
-        database="first_ai"
+        user="postgres",          # tu usuario de PostgreSQL
+        password="adnatfhso4",  # tu contraseña
+        database="IA"       # nombre de tu base de datos
     )
 
 # ==========================
@@ -23,52 +25,51 @@ def guardar_diagnostico(tipo, clase, instrucciones, numero_control=None, nombre_
             INSERT INTO historial_diagnosticos 
             (fecha, tipo, clase_detectada, probabilidad, numero_control, nombre_completo, instrucciones)
             VALUES (NOW(), %s, %s, %s, %s, %s, %s)
+            RETURNING id
         """
 
         values = (tipo, clase, probabilidad, numero_control, nombre_completo, instrucciones)
         
-        print(f"Intentando guardar diagnóstico: tipo={tipo}, clase={clase}, probabilidad={probabilidad}, numero_control={numero_control}, nombre_completo={nombre_completo}")
-
         cursor.execute(query, values)
+        new_id = cursor.fetchone()[0]
         conn.commit()
-        
-        print(f"Diagnóstico guardado exitosamente. ID: {cursor.lastrowid}")
 
-        return {"mensaje": "Diagnóstico guardado correctamente", "id": cursor.lastrowid}
+        return {"mensaje": "Diagnóstico guardado correctamente", "id": new_id}
 
     except Error as e:
-        print(f"Error guardando diagnóstico: {e}")
-        print(f"Error completo: {type(e).__name__}: {str(e)}")
-        if conn and conn.is_connected():
+        if conn:
             conn.rollback()
         return {"error": str(e)}
 
     finally:
-        if conn and conn.is_connected():
+        if conn:
             cursor.close()
             conn.close()
-
 # ==========================
 # Obtener historial
 # ==========================
 def obtener_historial():
+    conn = None
     try:
         conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
         cursor.execute("""
-            SELECT  id, fecha, tipo, clase_detectada, probabilidad, numero_control, nombre_completo, instrucciones 
+            SELECT id, fecha, tipo, clase_detectada, probabilidad, numero_control, nombre_completo, instrucciones 
             FROM historial_diagnosticos 
             ORDER BY fecha DESC
         """)
+
         return cursor.fetchall()
 
-    except Error as e:
+    except Exception as e:
         return {"error": str(e)}
 
     finally:
-        if conn.is_connected():
+        if conn:
             cursor.close()
             conn.close()
+
 
 # ==========================
 # Guardar pregunta y respuesta
@@ -80,48 +81,54 @@ def guardar_conversacion(diagnostico_id, numero_control, pregunta, respuesta):
         cursor = conn.cursor()
 
         query = """
-            INSERT INTO conversaciones_diagnosticos 
+            INSERT INTO conversaciones_diagnosticos
             (diagnostico_id, numero_control, pregunta, respuesta, fecha)
             VALUES (%s, %s, %s, %s, NOW())
+            RETURNING id;
         """
 
         values = (diagnostico_id, numero_control, pregunta, respuesta)
-        
-        cursor.execute(query, values)
-        conn.commit()
-        
-        return {"mensaje": "Conversación guardada correctamente", "id": cursor.lastrowid}
 
-    except Error as e:
-        print(f"Error guardando conversación: {e}")
-        if conn and conn.is_connected():
+        cursor.execute(query, values)
+        new_id = cursor.fetchone()[0]
+        conn.commit()
+
+        return {"mensaje": "Conversación guardada correctamente", "id": new_id}
+
+    except Exception as e:
+        print("Error guardando conversación:", e)
+        if conn:
             conn.rollback()
         return {"error": str(e)}
 
     finally:
-        if conn and conn.is_connected():
+        if conn:
             cursor.close()
             conn.close()
+
 
 # ==========================
 # Obtener conversaciones de un diagnóstico
 # ==========================
 def obtener_conversaciones(diagnostico_id):
+    conn = None
     try:
         conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
         cursor.execute("""
             SELECT id, pregunta, respuesta, fecha
-            FROM conversaciones_diagnosticos 
+            FROM conversaciones_diagnosticos
             WHERE diagnostico_id = %s
             ORDER BY fecha ASC
         """, (diagnostico_id,))
+
         return cursor.fetchall()
 
-    except Error as e:
+    except Exception as e:
         return {"error": str(e)}
 
     finally:
-        if conn.is_connected():
+        if conn:
             cursor.close()
             conn.close()

@@ -9,10 +9,12 @@ from PIL import Image
 import threading
 import google.generativeai as genai
 import logging
-from conexion import obtener_historial
-from conexion import guardar_diagnostico
-from conexion import guardar_conversacion
-from conexion import obtener_conversaciones
+# Importaciones de conexion - usando importación directa ya que están en el mismo directorio
+try:
+    from conexion import obtener_historial, guardar_diagnostico, guardar_conversacion, obtener_conversaciones
+except ImportError:
+    # Fallback: importación relativa si la directa falla
+    from .conexion import obtener_historial, guardar_diagnostico, guardar_conversacion, obtener_conversaciones
 
 
 
@@ -34,8 +36,11 @@ app.add_middleware(
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
 sys.path.append(PROJECT_ROOT)
+sys.path.append(BASE_DIR)  # Agregar el directorio frontend al path
 
-from model import ModelManager, clases  # traigo el modelo y las clases
+from model import ModelManager  # traigo el modelo y las clases
+
+clases = ModelManager.clases
 
 # ==========================
 # Config Gemini API
@@ -110,8 +115,6 @@ def train_on_new_image(contents: bytes, clase: str):
     except Exception as e:
         logging.error(f"Error en entrenamiento incremental: {e}")
 
-from conexion import guardar_diagnostico
-
 # ==========================
 # Endpoint predict + train
 # ==========================
@@ -185,27 +188,33 @@ class SymptomRequest(BaseModel):
 # ==========================
 # Endpoint para recomendaciones basadas en texto
 # ==========================
+@app.post("/analyze-symptoms")
 @app.post("/analyze-symptoms/")
 async def analyze_symptoms(request: SymptomRequest):
-    texto = request.symptoms.strip().lower()
-
-    # Validar que los campos obligatorios estén presentes
-    if not request.numero_control or not request.numero_control.strip():
-        raise HTTPException(status_code=400, detail="El número de control es obligatorio")
-    if not request.nombre_completo or not request.nombre_completo.strip():
-        raise HTTPException(status_code=400, detail="El nombre completo es obligatorio")
-
-    # Validar que mencione extremidad y tipo de lesión
-    extremidad_valida = any(x in texto for x in ["brazo", "pierna"])
-    tipo_valido = any(x in texto for x in ["cortada", "corte", "quemadura"])
-
-    if not (extremidad_valida and tipo_valido):
-        raise HTTPException(
-            status_code=400, 
-            detail="Solo se permiten descripciones de cortadas o quemaduras en brazos o piernas."
-        )
-
     try:
+        texto = request.symptoms.strip().lower()
+
+        # Validar que los campos obligatorios estén presentes
+        if not request.numero_control or not request.numero_control.strip():
+            raise HTTPException(status_code=400, detail="El número de control es obligatorio")
+        if not request.nombre_completo or not request.nombre_completo.strip():
+            raise HTTPException(status_code=400, detail="El nombre completo es obligatorio")
+
+        # Validar que mencione extremidad y tipo de lesión
+        extremidad_valida = any(x in texto for x in ["brazo", "pierna"])
+        tipo_valido = any(x in texto for x in ["cortada", "corte", "quemadura"])
+
+        if not (extremidad_valida and tipo_valido):
+            raise HTTPException(
+                status_code=400, 
+                detail="Solo se permiten descripciones de cortadas o quemaduras en brazos o piernas."
+            )
+    except Exception as e:
+         logging.error(f"Error al entrar: {e}")
+    try:
+        # =========================
+        # Generar recomendación con Gemini
+        # =========================
         prompt = f"""
         Actúa como un experto en primeros auxilios. Un estudiante presenta la siguiente herida:
         {request.symptoms}
@@ -216,8 +225,28 @@ async def analyze_symptoms(request: SymptomRequest):
         3. Advertencias claras de lo que NO se debe hacer
         """
 
-        model = genai.GenerativeModel("gemini-2.5-flash")
-        respuesta = model.generate_content(prompt)
+        try:
+            # Intentar con diferentes modelos de Gemini
+            modelos = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro","gemini-2.5-flash"]
+            respuesta_texto = None
+            for modelo_nombre in modelos:
+                try:
+                    model = genai.GenerativeModel(modelo_nombre)
+                    respuesta_obj = model.generate_content(prompt)
+                    respuesta_texto = respuesta_obj.text
+                    break  # Si funciona, salir del bucle
+                except Exception as e:
+                    logging.warning(f"Error con modelo {modelo_nombre}: {e}, intentando siguiente...")
+                    continue
+            
+            if respuesta_texto is None:
+                raise Exception("No se pudo conectar con ningún modelo de Gemini. Verifica tu API key.")
+        except Exception as gemini_error:
+            logging.error(f"Error con Gemini API: {gemini_error}")
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Error al comunicarse con la API de Gemini: {str(gemini_error)}"
+            )
 
         # =========================
         # Determinar clase detectada
@@ -232,29 +261,39 @@ async def analyze_symptoms(request: SymptomRequest):
         # =========================
         # Guardar en base de datos
         # =========================
-        # Para análisis de texto, no hay probabilidad, se guarda como NULL
-        resultado_bd = guardar_diagnostico(
-            tipo="texto",
-            clase=clase_detectada,
-            instrucciones=respuesta.text,
-            numero_control=request.numero_control.strip(),
-            nombre_completo=request.nombre_completo.strip(),
-            probabilidad=None  # No hay probabilidad en análisis de texto
-        )
-        
-        # Log del resultado de guardado
-        if "error" in resultado_bd:
-            print(f"ERROR al guardar en BD: {resultado_bd['error']}")
-        else:
-            print(f"Guardado exitoso en BD: {resultado_bd.get('mensaje', 'OK')}")
+        diagnostico_id = None
+        try:
+            resultado_bd = guardar_diagnostico(
+                tipo="texto",
+                clase=clase_detectada,
+                instrucciones=respuesta_texto,
+                numero_control=request.numero_control.strip(),
+                nombre_completo=request.nombre_completo.strip(),
+                probabilidad=None  # No hay probabilidad en análisis de texto
+            )
+            
+            # Log del resultado de guardado
+            if "error" in resultado_bd:
+                logging.error(f"ERROR al guardar en BD: {resultado_bd['error']}")
+                # No lanzar error, solo registrar - el diagnóstico ya se generó
+            else:
+                logging.info(f"Guardado exitoso en BD: {resultado_bd.get('mensaje', 'OK')}")
+                diagnostico_id = resultado_bd.get("id")
+        except Exception as bd_error:
+            logging.error(f"Error al guardar en base de datos: {bd_error}")
+            # No lanzar error, solo registrar - el diagnóstico ya se generó
 
         return {
-            "respuesta": respuesta.text,
-            "diagnostico_id": resultado_bd.get("id")  # ID del diagnóstico guardado
+            "respuesta": respuesta_texto,
+            "diagnostico_id": diagnostico_id  # ID del diagnóstico guardado (puede ser None si falló)
         }
 
+    except HTTPException:
+        # Re-lanzar HTTPException sin modificar
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al generar la recomendación: {e}")
+        logging.error(f"Error inesperado en analyze_symptoms: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error al generar la recomendación: {str(e)}")
     
     # Endpoint para historial
 @app.get("/historial/")
@@ -294,10 +333,21 @@ async def preguntar_diagnostico(request: PreguntaRequest):
         indícalo educadamente y ofrece ayuda relacionada con primeros auxilios.
         """
         
-        # Generar respuesta con Gemini
-        model = genai.GenerativeModel("gemini-2.5-flash")
-        respuesta_obj = model.generate_content(contexto)
-        respuesta_texto = respuesta_obj.text
+        # Generar respuesta con Gemini - intentar con diferentes modelos
+        modelos = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro","gemini-2.5-flash"]
+        respuesta_texto = None
+        for modelo_nombre in modelos:
+            try:
+                model = genai.GenerativeModel(modelo_nombre)
+                respuesta_obj = model.generate_content(contexto)
+                respuesta_texto = respuesta_obj.text
+                break  # Si funciona, salir del bucle
+            except Exception as e:
+                logging.warning(f"Error con modelo {modelo_nombre}: {e}, intentando siguiente...")
+                continue
+        
+        if respuesta_texto is None:
+            raise Exception("No se pudo conectar con ningún modelo de Gemini. Verifica tu API key.")
 
         # Guardar la conversación en la BD
         resultado_guardado = guardar_conversacion(

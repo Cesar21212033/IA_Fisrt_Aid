@@ -46,7 +46,8 @@ def run_command(cmd, name, cwd=None):
 # --- Comandos a ejecutar ---
 comandos = [
     # FastAPI sin --reload para evitar SpawnProcess en hilos de Windows
-    (f"uvicorn frontend.app:app --port 8001 --log-level info", "FastAPI"),
+    # Usar python -m uvicorn para asegurar que funcione aunque uvicorn no esté en PATH
+    (f"python -m uvicorn frontend.app:app --port 8001 --log-level info", "FastAPI"),
     ("npm run dev", "Vite")
 ]
 
@@ -56,7 +57,8 @@ for cmd, name in comandos:
     if name == "Vite":
         t = threading.Thread(target=run_command, args=(cmd, name, CURRENT_DIR))
     else:
-        t = threading.Thread(target=run_command, args=(cmd, name))
+        # FastAPI debe ejecutarse desde PROJECT_ROOT para encontrar el módulo 'frontend'
+        t = threading.Thread(target=run_command, args=(cmd, name, PROJECT_ROOT))
     t.start()
     threads.append(t)
 

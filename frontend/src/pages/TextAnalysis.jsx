@@ -50,6 +50,11 @@ export default function TextWoundAnalysis() {
         }),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Error desconocido del servidor" }));
+        throw new Error(errorData.detail || `Error ${response.status}: ${response.statusText}`);
+      }
+
       const data = await response.json();
 
       if (data.respuesta) {
@@ -78,11 +83,12 @@ export default function TextWoundAnalysis() {
         });
       } else if (data.error) {
         console.error("Error del servidor:", data.error);
-        alert("Ocurrió un error al generar la recomendación.");
+        alert(`Error: ${data.error}`);
       }
     } catch (error) {
       console.error("Error al solicitar la recomendación:", error);
-      alert("Ocurrió un error al comunicarse con el servidor.");
+      const errorMessage = error.message || "Ocurrió un error al comunicarse con el servidor.";
+      alert(`Error: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
