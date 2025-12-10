@@ -59,7 +59,6 @@ const handleReset = () => {
     try {
       const formData = new FormData();
       formData.append("file", selectedFile);
-      formData.append("clase", "quemaduras"); // o "cortadas", según corresponda
       formData.append("numero_control", numeroControl.trim());
       formData.append("nombre_completo", nombreCompleto.trim());
 
@@ -79,6 +78,7 @@ const handleReset = () => {
         state: {
           clase: data.clase,
           probabilidad: data.probabilidad,
+          gravedad: data.gravedad,  // Incluir gravedad
           instrucciones: data.instrucciones,
           imageUrl: imageUrl,
           tipo: 'imagen',

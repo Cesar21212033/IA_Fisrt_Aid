@@ -11,19 +11,26 @@ export default function TextWoundAnalysis() {
   const [numeroControl, setNumeroControl] = useState('');
   const [nombreCompleto, setNombreCompleto] = useState('');
 
-  // Validación en tiempo real del texto ingresado
+  // Validación en tiempo real del texto ingresado (más flexible)
   useEffect(() => {
     const texto = description.toLowerCase();
 
-    const extremidadValida = /(brazo|pierna)/i.test(texto);
-    const tipoValido = /(cortad[ao]|corte|me cort[ée]|quemadur[ao])/i.test(texto);
-
-    setIsValid(extremidadValida && tipoValido);
+    // Palabras relacionadas con cortadas (más flexibles)
+    const palabrasCortadas = /(cortad[ao]|corte|me cort[ée]|se cort[óo]|herid[ao]|laceraci[óo]n|rasgu[ñn]o|sangr[ae])/i;
+    
+    // Palabras relacionadas con quemaduras (más flexibles)
+    const palabrasQuemaduras = /(quemadur[ao]|quemad[ao]|me quem[ée]|se quem[óo]|ardor|ardiendo|quemaz[óo]n|escaldadur[ao]|ampoll[ao])/i;
+    
+    // Tipo de lesión válido (cortada O quemadura)
+    const tipoValido = palabrasCortadas.test(texto) || palabrasQuemaduras.test(texto);
+    
+    // Validar: debe tener tipo de lesión y mínimo 10 caracteres para una descripción válida
+    setIsValid(tipoValido && description.trim().length > 10);
   }, [description]);
 
   const handleAnalyze = async () => {
     if (!description.trim() || !isValid) {
-      alert("Por favor, describe solo cortadas o quemaduras en brazos o piernas.");
+      alert("Por favor, describe una cortada o quemadura. Ejemplos: 'tengo una cortada en el brazo', 'me quemé la pierna', 'herida que sangra', etc.");
       return;
     }
 
@@ -70,8 +77,9 @@ export default function TextWoundAnalysis() {
         // Navegar a DiagnosisResults con los datos
         navigate('/diagnosis-results', {
           state: {
-            clase: clase,
+            clase: data.clase_detectada || clase,
             probabilidad: 1.0, // No hay probabilidad en análisis de texto
+            gravedad: data.gravedad,  // Incluir gravedad del backend
             respuesta: data.respuesta,
             instrucciones: data.respuesta, // La respuesta es la recomendación
             textoIngresado: description, // El texto que ingresó el usuario
@@ -175,7 +183,7 @@ export default function TextWoundAnalysis() {
 
             {description.trim() && !isValid && (
               <p className="text-red-600 mt-2 text-sm">
-                Solo se permiten cortadas o quemaduras en brazos o piernas
+                Describe una cortada o quemadura. Ejemplos: "tengo una cortada en el brazo", "me quemé la pierna", "herida que sangra"
               </p>
             )}
 

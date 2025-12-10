@@ -8,8 +8,8 @@ def get_connection():
     return psycopg2.connect(
         host="localhost",
         user="postgres",          # tu usuario de PostgreSQL
-        password="adnatfhso4",  # tu contraseña
-        database="IA"       # nombre de tu base de datos
+        password="2016",  # tu contraseña
+        database="ia_bd"       # nombre de tu base de datos
     )
 
 # ==========================

@@ -19,3 +19,9 @@ __pycache__/
 *.pyd
 *.dylib
 *.so
+
+# Variables de entorno y secretos
+.env
+*.env
+.env.local
+.env.*.local
