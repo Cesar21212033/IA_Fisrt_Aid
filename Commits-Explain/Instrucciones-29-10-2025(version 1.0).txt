@@ -1,0 +1,53 @@
+Bitácora de Avance – 29/10/2025
+
+Proyecto: IA First Aid – Diagnóstico de lesiones escolares
+Equipo: Desarrollo Frontend + Backend
+
+1. Primer resumen del día
+
+Hoy se solucionó un problema relacionado con la creación de un archivo duplicado modelo_quemaduras_cortadas.keras dentro de la carpeta frontend/. Aunque ya existía un modelo en la raíz del proyecto (IA-Convolucional/), se generaba otro al iniciar la aplicación, lo que provocaba errores al cargarlo.
+
+Solución implementada:
+
+Ajustamos start.py para que siempre use el modelo existente en la raíz del proyecto.
+
+La ejecución de Vite se hace desde la carpeta frontend/ para evitar errores de rutas.
+
+
+2. Backend – FastAPI (app.py)
+Gestión del modelo:
+
+app.py carga correctamente modelo_quemaduras_cortadas.keras desde la raíz del proyecto, evitando duplicados.
+
+Nueva funcionalidad: ahora, al ejecutar el endpoint /predict_and_train/ desde el frontend (.jsx), no solo se obtiene la predicción y las recomendaciones de Gemini, sino que también se realiza entrenamiento incremental seguro del modelo con la nueva imagen enviada.
+
+El modelo se guarda temporalmente y reemplaza el archivo original de manera segura.
+
+CORS habilitado:
+Permite que el frontend haga peticiones sin problemas de origen.
+
+Beneficio:
+El análisis de imágenes ahora es más completo: predicción, recomendación y actualización del modelo en un solo flujo, directamente desde la interfaz React.
+
+
+3. Frontend – React + Vite
+Permite subir imágenes y previsualizarlas antes del análisis.
+
+Envía imágenes al backend para obtener predicción, probabilidad y recomendaciones de Gemini.
+
+Nuevo: cada vez que se ejecuta la predicción desde el frontend, el modelo se entrena incrementalmente con la nueva imagen.
+
+Cambio importante: los resultados ya no se muestran en DiagnosisResults.jsx; ahora se muestran directamente en ImageAnalysis.jsx, donde se realiza todo el flujo de selección de imagen, análisis, predicción y recomendaciones.
+
+Muestra resultados y recomendaciones de manera clara y dinámica.
+
+
+4. Ejecución de la aplicación
+Se ejecuta con:
+py frontend\start.py
+
+
+Esto asegura:
+Servidor FastAPI corriendo en http://localhost:8001 con el endpoint /predict_and_train/.
+Servidor React + Vite corriendo en http://localhost:5173.
+Uso del modelo correcto en la raíz, evitando la creación de archivos duplicados.

@@ -1,0 +1,49 @@
+Reporte de Avance: Sistema de Registro de Diagnósticos Médicos con IA
+
+Hasta el momento, se ha logrado implementar un sistema funcional que combina procesamiento de imágenes y análisis de texto para generar diagnósticos escolares, con almacenamiento automático en una base de datos.
+
+Progreso alcanzado:
+
+Configuración del backend con FastAPI:
+
+Creación de un servidor FastAPI que gestiona los endpoints para subir imágenes, enviar texto y consultar el historial de diagnósticos.
+
+Configuración de CORS para permitir acceso desde el frontend en React.
+
+Procesamiento y predicción de imágenes:
+
+Integración de un modelo de TensorFlow/Keras capaz de clasificar lesiones en “quemaduras” o “cortadas”.
+
+Implementación de entrenamiento incremental para actualizar el modelo con nuevas imágenes de manera rápida y sin interrumpir el servicio.
+
+Análisis de síntomas en texto:
+
+Creación de un endpoint que recibe la descripción de la lesión por texto y valida la información.
+
+Uso de Google Gemini API para generar recomendaciones profesionales de primeros auxilios.
+
+Base de datos MySQL:
+
+Definición de la tabla historial_diagnosticos con campos fecha, tipo, clase_detectada e instrucciones.
+
+Implementación de funciones en Python para guardar y consultar diagnósticos usando mysql-connector-python, librería necesaria para la conexión y ejecución de queries.
+
+Registro automático de diagnósticos:
+
+Cada predicción de imagen y análisis de texto se guarda automáticamente en la base de datos, creando un historial centralizado.
+
+Esto permite seguimiento de casos, análisis de patrones y consulta de diagnósticos previos desde el frontend.
+
+Consulta del historial:
+
+Desarrollo de un endpoint que devuelve todos los diagnósticos ordenados por fecha.
+
+El frontend puede consumir este endpoint para mostrar la lista completa de diagnósticos históricos.
+
+Avance de hoy:
+
+Se adaptó completamente la tabla y las funciones de almacenamiento para eliminar campos innecesarios (severidad y usuario_id), simplificando el registro.
+
+Se logró que los diagnósticos de imágenes y texto se almacenen correctamente en la base de datos, manteniendo tipo, clase_detectada, instrucciones y fecha.
+
+Se confirmó que la dependencia mysql-connector-python es necesaria para la conexión y ejecución de las operaciones en MySQL.

@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Home from './pages/Home'
 import ImageAnalysis from './pages/ImageAnalysis'
 import TextAnalysis from './pages/TextAnalysis'
-import DiagnosisResults from './pages/DiagnosisResults'
+import DiagnosisResults from './pages/DiagnosisResult'
 import DiagnosticHistory from './pages/DiagnosticHistory'
 import FirstAidGuide from './pages/FirstAidGuide'
 

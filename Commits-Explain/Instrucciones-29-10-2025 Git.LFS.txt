@@ -1,0 +1,76 @@
+1️⃣ Por qué se implementó Git LFS
+
+Durante el último git push, GitHub mostró el siguiente mensaje:
+
+remote: warning: File modelo_quemaduras_cortadas.keras is 84.64 MB; this is larger than GitHub's recommended maximum file size of 50.00 MB
+remote: warning: GH001: Large files detected. You may want to try Git Large File Storage - https://git-lfs.github.com.
+
+
+Esto significa que el archivo modelo_quemaduras_cortadas.keras (el modelo entrenado de IA) supera el límite recomendado por GitHub, que es de 50 MB.
+Aunque el archivo logró subirse, GitHub no está diseñado para manejar archivos tan grandes directamente, lo que puede provocar advertencias o incluso errores en el futuro.
+
+Git maneja muy bien archivos de texto (como código), pero no está optimizado para manejar archivos binarios grandes como modelos de inteligencia artificial, imágenes o videos.
+Cuando un archivo de este tipo se versiona directamente en el repositorio, Git debe guardar una copia completa en cada commit, lo que hace que el repositorio crezca rápidamente y se vuelva lento.
+
+Para evitar estos problemas se implementó Git LFS (Large File Storage), una herramienta que almacena los archivos grandes fuera del repositorio principal.
+Git LFS guarda únicamente una referencia ligera dentro del repositorio, mientras que el archivo real se almacena en un sistema optimizado para archivos pesados.
+
+En resumen, se implementó Git LFS porque el archivo del modelo superaba el tamaño recomendado y podía afectar el rendimiento y la estabilidad del repositorio.
+Gracias a esta implementación, el repositorio se mantiene liviano, rápido y compatible con GitHub.
+
+2️⃣ Qué deben hacer los demás integrantes del equipo
+
+Cada integrante del equipo debe instalar y configurar Git LFS una sola vez en su computadora.
+Después de hacerlo, podrán seguir utilizando Git de la misma manera que siempre, sin cambios en su flujo de trabajo.
+
+Pasos para configurar Git LFS en Windows
+1. Instalar Git LFS
+
+Hay dos formas de hacerlo:
+
+Opción 1 (instalador oficial):
+Ir a la página oficial:
+https://git-lfs.github.com
+
+Descargar el instalador para Windows y seguir los pasos (Next → Next → Finish).
+
+Opción 2 (usando Chocolatey):
+Les recomiendo esta pues es la opcion que use sin problema alguno
+Si se tiene instalado Chocolatey, abrir PowerShell como administrador y ejecutar:
+
+choco install git-lfs
+
+2. Inicializar Git LFS
+
+Una vez instalado, desde la carpeta raiz del repositorio ejecutar:
+
+git lfs install
+
+3. Actualizar el repositorio
+
+Si aún no se tiene la última versión del proyecto, ejecutar:
+
+git pull origin main
+
+
+Esto permitirá que Git LFS descargue correctamente los archivos grandes, como el modelo .keras.
+
+3️⃣ A partir de ese momento
+
+No se requiere realizar ningún cambio adicional.
+El equipo podrá seguir utilizando los comandos normales de Git:
+
+git add .
+git commit -m "mensaje"
+git push
+git pull
+
+
+Git LFS se encargará automáticamente de manejar los archivos grandes.
+
+4️⃣ Nota importante
+
+Si un integrante del equipo no instala Git LFS y realiza un git pull, el modelo no se descargará correctamente.
+En su lugar, aparecerá un archivo de texto pequeño con una referencia al archivo real.
+
+Por eso, es importante que todos los miembros del equipo instalen e inicialicen Git LFS antes de trabajar con el repositorio.

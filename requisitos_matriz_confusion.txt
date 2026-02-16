@@ -1,0 +1,79 @@
+==========================================
+LIBRERÍAS NECESARIAS PARA matriz_confusion.py
+==========================================
+
+LIBRERÍAS ESTÁNDAR DE PYTHON (incluidas por defecto):
+- os
+
+LIBRERÍAS EXTERNAS (requieren instalación):
+- numpy
+- matplotlib
+- scikit-learn (sklearn)
+- tensorflow (keras)
+- seaborn
+
+==========================================
+COMANDOS DE INSTALACIÓN
+==========================================
+
+Instalar todas las librerías de una vez:
+pip install numpy matplotlib scikit-learn tensorflow seaborn
+
+O instalar individualmente:
+
+pip install numpy
+pip install matplotlib
+pip install scikit-learn
+pip install tensorflow
+pip install seaborn
+
+==========================================
+VERSIONES RECOMENDADAS
+==========================================
+
+numpy >= 1.21.0
+matplotlib >= 3.5.0
+scikit-learn >= 1.0.0
+tensorflow >= 2.8.0
+seaborn >= 0.11.0
+
+==========================================
+⚠️ IMPORTANTE: COMPATIBILIDAD CON PYTHON
+==========================================
+
+TensorFlow actualmente soporta Python 3.9 hasta Python 3.12.
+Si estás usando Python 3.13 o superior (como Python 3.14), TensorFlow NO estará disponible.
+
+SOLUCIONES:
+
+1. USAR PYTHON 3.12 (RECOMENDADO):
+   - Descargar Python 3.12 desde python.org
+   - Crear un nuevo entorno virtual con Python 3.12:
+     py -3.12 -m venv venv312
+   - Activar el entorno virtual y luego instalar las librerías
+
+2. INSTALAR DESDE CÓDIGO FUENTE (AVANZADO):
+   - Requiere compilar TensorFlow desde el código fuente
+   - No recomendado para usuarios principiantes
+
+3. USAR UNA VERSIÓN DE DESARROLLO (EXPERIMENTAL):
+   - Puede tener problemas de estabilidad
+   - No recomendado para producción
+
+==========================================
+NOTAS
+==========================================
+
+- TensorFlow incluye Keras, por lo que no es necesario instalar Keras por separado
+- Si tienes problemas con TensorFlow, puedes usar: pip install tensorflow-cpu (versión CPU)
+- Para GPU: pip install tensorflow (versión completa con soporte GPU)
+- VERIFICAR VERSIÓN DE PYTHON: python --version
+
+==========================================
+VERIFICAR INSTALACIÓN
+==========================================
+
+Para verificar que todas las librerías están instaladas, ejecuta:
+
+python -c "import numpy; import matplotlib; import sklearn; import tensorflow; import seaborn; print('Todas las librerías están instaladas correctamente')"
+

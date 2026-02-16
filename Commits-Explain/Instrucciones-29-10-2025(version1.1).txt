@@ -1,0 +1,65 @@
+Nueva implementación de recomendaciones de tipo texto – Diagnóstico por texto
+
+Proyecto: IA First Aid – Diagnóstico de lesiones escolares
+Equipo: Desarrollo Frontend + Backend
+
+1. Resumen push
+
+Se implementó un nuevo endpoint /analyze-symptoms/ en el backend para permitir que el usuario reciba recomendaciones de primeros auxilios en base a la descripción textual de la lesión, sin necesidad de subir una imagen.
+
+La interfaz React envía al backend la descripción ingresada por el usuario.
+
+Se valida que la descripción mencione solo lesiones de tipo cortada o quemadura en brazos o piernas, evitando textos irrelevantes.
+
+2. Backend – FastAPI (app.py)
+
+Flujo de procesamiento de texto:
+
+El endpoint /analyze-symptoms/ recibe la descripción de la lesión.
+
+Se valida que la entrada contenga:
+
+Una extremidad válida (brazo o pierna)
+
+Un tipo de lesión permitido (cortada, corte o quemadura)
+
+Si la entrada no es válida, se devuelve un error 400 con un mensaje claro.
+
+Se construye un prompt para la API Gemini, solicitando:
+
+Breve descripción de la lesión
+
+Tres pasos de acción inmediata
+
+Advertencias sobre lo que no se debe hacer
+
+La respuesta de Gemini se devuelve como JSON al frontend.
+
+Beneficio:
+El usuario recibe recomendaciones profesionales y concisas basadas únicamente en texto, sin necesidad de análisis de imagen, con validaciones que evitan descripciones fuera del alcance permitido.
+
+3. Frontend – React + Vite
+
+Flujo en la ventana de texto (TextWoundAnalysis.jsx):
+
+El usuario escribe la descripción de la lesión.
+
+Validación en tiempo real para asegurar que mencione únicamente lesiones de cortada o quemadura en brazos o piernas.
+
+Al enviar el texto:
+
+Se llama al endpoint /analyze-symptoms/.
+
+Se muestra la recomendación generada por Gemini.
+
+Se habilita un botón “Nuevo análisis” para limpiar el formulario y permitir una nueva consulta.
+
+Beneficio:
+Mantiene la interfaz clara y dinámica, mostrando recomendaciones instantáneas por texto y asegurando que la entrada sea válida y relevante.
+
+4. Ejecución de la aplicación
+
+Servidor FastAPI corriendo en http://localhost:8001 con el endpoint /analyze-symptoms/.
+
+Servidor React + Vite corriendo en http://localhost:5173.
+
